@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { contentProjects } from "@/lib/db/schema";
+import { ensureUser } from "@/lib/db/users";
 
 export async function GET() {
   try {
@@ -11,6 +12,8 @@ export async function GET() {
     if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    await ensureUser(userId);
 
     const projects = await db
       .select()
@@ -34,6 +37,8 @@ export async function POST(req: Request) {
     if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    await ensureUser(userId);
 
     const body = await req.json();
     const parsed = createSchema.safeParse(body);

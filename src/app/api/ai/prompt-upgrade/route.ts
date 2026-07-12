@@ -11,6 +11,8 @@ import {
 } from "@/lib/ai/prompts/prompt-upgrade";
 import { db } from "@/lib/db";
 import { generations } from "@/lib/db/schema";
+import { ensureUser } from "@/lib/db/users";
+import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
 
 const schema = z.object({
   prompt: z.string().min(1),
@@ -24,6 +26,12 @@ export async function POST(req: Request) {
     if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    if (!checkRateLimit(userId)) {
+      return rateLimitResponse();
+    }
+
+    await ensureUser(userId);
 
     const body = await req.json();
     const parsed = schema.safeParse(body);

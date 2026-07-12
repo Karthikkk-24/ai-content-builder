@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { contentProjects } from "@/lib/db/schema";
+import { ensureUser } from "@/lib/db/users";
 
 export async function GET(
   _req: Request,
@@ -14,6 +15,8 @@ export async function GET(
     if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    await ensureUser(userId);
 
     const { id } = await params;
     const [project] = await db
@@ -50,6 +53,8 @@ export async function PATCH(
     if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    await ensureUser(userId);
 
     const { id } = await params;
     const body = await req.json();
@@ -91,6 +96,8 @@ export async function DELETE(
     if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    await ensureUser(userId);
 
     const { id } = await params;
     await db
