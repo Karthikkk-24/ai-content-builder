@@ -66,7 +66,20 @@ psql $DATABASE_URL -f drizzle/0000_init.sql
 
 The schema creates four tables: `users`, `content_projects`, `generations`, and `reference_images`.
 
-### 4. Configure Clerk webhook
+### 4. Configure Clerk Google OAuth
+
+In the [Clerk Dashboard](https://dashboard.clerk.com):
+
+1. Go to **User & Authentication → Social Connections**
+2. Enable **Google**
+3. For local dev, add these URLs under **Paths** (or use Clerk's development instance defaults):
+   - Sign-in URL: `http://localhost:3000/sign-in`
+   - Sign-up URL: `http://localhost:3000/sign-up`
+   - After sign-in URL: `http://localhost:3000/dashboard`
+
+The app handles Google OAuth via dedicated SSO callback routes at `/sign-in/sso-callback` and `/sign-up/sso-callback`.
+
+### 5. Configure Clerk webhook
 
 In your Clerk dashboard, add a webhook endpoint:
 
@@ -76,7 +89,7 @@ https://your-domain.com/api/webhooks/clerk
 
 Subscribe to `user.created` and `user.updated` events. Copy the signing secret to `CLERK_WEBHOOK_SECRET`.
 
-### 5. Run the development server
+### 6. Run the development server
 
 ```bash
 npm run dev

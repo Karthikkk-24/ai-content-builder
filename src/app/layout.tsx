@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { extractRouterConfig } from "uploadthing/server";
 import { ourFileRouter } from "@/app/api/uploadthing/core";
+import { clerkConfig } from "@/lib/clerk-config";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -28,7 +29,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <ClerkProvider>
+    <ClerkProvider
+      signInUrl={clerkConfig.signInUrl}
+      signUpUrl={clerkConfig.signUpUrl}
+      signInFallbackRedirectUrl={clerkConfig.signInFallbackRedirectUrl}
+      signUpFallbackRedirectUrl={clerkConfig.signUpFallbackRedirectUrl}
+      signInForceRedirectUrl={clerkConfig.signInForceRedirectUrl}
+      signUpForceRedirectUrl={clerkConfig.signUpForceRedirectUrl}
+    >
       <html
         lang="en"
         className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
