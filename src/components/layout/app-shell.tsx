@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { SessionKeeper } from "@/components/auth/session-keeper";
 import { cn } from "@/lib/utils";
 import { Navbar } from "./navbar";
 import { Sidebar } from "./sidebar";
@@ -11,6 +12,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen bg-zinc-50">
+      <SessionKeeper />
       <Sidebar
         collapsed={collapsed}
         mobileOpen={mobileOpen}

@@ -7,6 +7,7 @@ export const clerkConfig = {
   signUpFallbackRedirectUrl: "/dashboard",
   signInForceRedirectUrl: "/dashboard",
   signUpForceRedirectUrl: "/dashboard",
+  sessionMaxAgeDays: 30,
 } as const;
 
 export function isClerkConfigured() {

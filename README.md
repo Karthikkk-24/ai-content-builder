@@ -21,6 +21,7 @@ A full-stack Next.js application for building content and generating AI-powered 
 - Vercel AI SDK (Gemini + Groq)
 - Pollinations Flux (free image generation)
 - Uploadthing (file uploads)
+- Upstash Redis (caching, rate limits, session metadata)
 - Framer Motion (sidebar animations)
 
 ## Getting Started
@@ -47,7 +48,7 @@ cp .env.example .env.local
 | Neon | Postgres database | [neon.tech](https://neon.tech) |
 | Google AI Studio | Gemini Flash (text + vision) | [ai.google.dev](https://ai.google.dev) |
 | Groq | Llama 3.3 fallback (text) | [console.groq.com](https://console.groq.com) |
-| Uploadthing | Reference image uploads | [uploadthing.com](https://uploadthing.com) |
+| Upstash Redis | Caching & rate limiting (optional) | [console.upstash.com](https://console.upstash.com) |
 | Pollinations | Free image generation (optional key) | [auth.pollinations.ai](https://auth.pollinations.ai) |
 
 ### 3. Set up the database
@@ -89,7 +90,32 @@ https://your-domain.com/api/webhooks/clerk
 
 Subscribe to `user.created` and `user.updated` events. Copy the signing secret to `CLERK_WEBHOOK_SECRET`.
 
-### 6. Run the development server
+### 6. Configure session persistence (recommended)
+
+In Clerk Dashboard → **Sessions**:
+
+- Set session lifetime to **30 days**
+- Enable **multi-session** if you use multiple devices
+
+The app includes a `SessionKeeper` that refreshes your Clerk token every 5 minutes so you stay signed in.
+
+### 7. Configure Redis (optional, recommended for production)
+
+Create a free Upstash Redis database and add to `.env.local`:
+
+```
+UPSTASH_REDIS_REST_URL=https://...
+UPSTASH_REDIS_REST_TOKEN=...
+```
+
+Redis powers:
+- Dashboard & profile caching (faster page loads)
+- Distributed rate limiting across server instances
+- Session activity tracking
+
+Without Redis, the app falls back to in-memory caching locally.
+
+### 8. Run the development server
 
 ```bash
 npm run dev
@@ -101,10 +127,10 @@ Open [http://localhost:3000](http://localhost:3000).
 
 | Use case | Primary | Fallback |
 |----------|---------|----------|
-| Text generation | Gemini 2.0 Flash | Groq Llama 3.3 70B |
-| Prompt upgrade | Gemini 2.0 Flash | Groq Llama 3.3 70B |
+| Text generation | Gemini 3.5 Flash | Groq Llama 3.3 70B |
+| Prompt upgrade | Gemini 3.5 Flash | Groq Llama 3.3 70B |
 | Image generation | Pollinations Flux | — |
-| Reference analysis | Gemini 2.0 Flash (vision) | — |
+| Reference analysis | Gemini 3.5 Flash (vision) | — |
 
 ## Project Structure
 

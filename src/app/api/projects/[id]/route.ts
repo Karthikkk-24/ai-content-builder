@@ -2,6 +2,7 @@ import { auth } from "@clerk/nextjs/server";
 import { and, eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { invalidateUserCache } from "@/lib/cache";
 import { db } from "@/lib/db";
 import { contentProjects } from "@/lib/db/schema";
 import { ensureUser } from "@/lib/db/users";
@@ -77,6 +78,8 @@ export async function PATCH(
     if (!project) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
+
+    await invalidateUserCache(userId);
 
     return NextResponse.json(project);
   } catch (error) {

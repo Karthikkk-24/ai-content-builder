@@ -2,6 +2,7 @@ import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { formatAiError } from "@/lib/ai/errors";
+import { invalidateUserCache } from "@/lib/cache";
 import { generateTextWithFallback } from "@/lib/ai/router";
 import { buildTweetSystemPrompt, appendRemarks } from "@/lib/ai/prompts/prompt-upgrade";
 import { db } from "@/lib/db";
@@ -22,7 +23,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    if (!checkRateLimit(userId)) {
+    if (!(await checkRateLimit(userId))) {
       return rateLimitResponse();
     }
 
@@ -64,6 +65,8 @@ Include relevant hashtags. Return only the caption.`;
       outputContent: text,
       metadata: { context, provider, remarks: remarks ?? null },
     });
+
+    await invalidateUserCache(userId);
 
     return NextResponse.json({ output: text });
   } catch (error) {

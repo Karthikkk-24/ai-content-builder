@@ -2,6 +2,7 @@ import { auth } from "@clerk/nextjs/server";
 import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { invalidateUserCache } from "@/lib/cache";
 import { db } from "@/lib/db";
 import { contentProjects } from "@/lib/db/schema";
 import { ensureUser } from "@/lib/db/users";
@@ -54,6 +55,8 @@ export async function POST(req: Request) {
         blocks: parsed.data.blocks || [],
       })
       .returning();
+
+    await invalidateUserCache(userId);
 
     return NextResponse.json(project);
   } catch (error) {

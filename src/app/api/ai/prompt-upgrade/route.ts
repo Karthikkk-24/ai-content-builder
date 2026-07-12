@@ -2,6 +2,7 @@ import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { formatAiError } from "@/lib/ai/errors";
+import { invalidateUserCache } from "@/lib/cache";
 import {
   analyzeReferenceImage,
   generateTextWithFallback,
@@ -31,7 +32,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    if (!checkRateLimit(userId)) {
+    if (!(await checkRateLimit(userId))) {
       return rateLimitResponse();
     }
 
@@ -71,6 +72,8 @@ export async function POST(req: Request) {
       referenceImageUrl: sanitizeReferenceImageForStorage(referenceImageUrl),
       metadata: { context, remarks: remarks ?? null },
     });
+
+    await invalidateUserCache(userId);
 
     return NextResponse.json({
       original: prompt,

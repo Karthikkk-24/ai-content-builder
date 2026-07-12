@@ -1,17 +1,18 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
-import { getCachedGenerations } from "@/lib/dashboard";
+import { touchUserSession } from "@/lib/session";
 
-export async function GET() {
+export async function POST() {
   try {
     const { userId } = await auth();
     if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const items = await getCachedGenerations(userId, 50);
-    return NextResponse.json(items);
+    await touchUserSession(userId);
+
+    return NextResponse.json({ ok: true });
   } catch {
-    return NextResponse.json([]);
+    return NextResponse.json({ error: "Session heartbeat failed" }, { status: 500 });
   }
 }

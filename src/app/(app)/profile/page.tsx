@@ -1,5 +1,4 @@
-import { auth, currentUser } from "@clerk/nextjs/server";
-import { eq, desc } from "drizzle-orm";
+import { auth } from "@clerk/nextjs/server";
 import {
   Card,
   CardContent,
@@ -7,26 +6,15 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { db } from "@/lib/db";
-import { generations } from "@/lib/db/schema";
-
-async function getUserGenerations(userId: string) {
-  try {
-    return await db
-      .select()
-      .from(generations)
-      .where(eq(generations.userId, userId))
-      .orderBy(desc(generations.createdAt))
-      .limit(20);
-  } catch {
-    return [];
-  }
-}
+import { getCachedGenerations } from "@/lib/dashboard";
+import { resolveUserProfile } from "@/lib/session";
 
 export default async function ProfilePage() {
-  const user = await currentUser();
   const { userId } = await auth();
-  const userGenerations = userId ? await getUserGenerations(userId) : [];
+  const [profile, userGenerations] = await Promise.all([
+    resolveUserProfile(),
+    userId ? getCachedGenerations(userId, 20) : Promise.resolve([]),
+  ]);
 
   return (
     <div className="space-y-8">
@@ -42,21 +30,19 @@ export default async function ProfilePage() {
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="flex items-center gap-4">
-            {user?.imageUrl && (
+            {profile?.avatarUrl && (
               // eslint-disable-next-line @next/next/no-img-element
               <img
-                src={user.imageUrl}
+                src={profile.avatarUrl}
                 alt="Avatar"
                 className="h-16 w-16 rounded-full border border-zinc-200"
               />
             )}
             <div>
               <p className="font-medium text-zinc-900">
-                {user?.fullName || "User"}
+                {profile?.name || "User"}
               </p>
-              <p className="text-sm text-zinc-500">
-                {user?.primaryEmailAddress?.emailAddress}
-              </p>
+              <p className="text-sm text-zinc-500">{profile?.email}</p>
             </div>
           </div>
         </CardContent>

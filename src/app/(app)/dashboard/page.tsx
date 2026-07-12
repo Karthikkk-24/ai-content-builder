@@ -1,6 +1,6 @@
 import { auth } from "@clerk/nextjs/server";
-import { eq, count, desc, gte, and } from "drizzle-orm";
 import Link from "next/link";
+import { getDashboardStats } from "@/lib/dashboard";
 import {
   FileText,
   Image,
@@ -15,8 +15,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { db } from "@/lib/db";
-import { contentProjects, generations } from "@/lib/db/schema";
 
 const quickActions = [
   { href: "/generate/posters", label: "Posters", icon: Image },
@@ -26,53 +24,10 @@ const quickActions = [
   { href: "/builder", label: "Content Builder", icon: FileText },
 ];
 
-async function getStats(userId: string) {
-  try {
-    const weekAgo = new Date();
-    weekAgo.setDate(weekAgo.getDate() - 7);
-
-    const [genCount] = await db
-      .select({ count: count() })
-      .from(generations)
-      .where(eq(generations.userId, userId));
-
-    const [projectCount] = await db
-      .select({ count: count() })
-      .from(contentProjects)
-      .where(eq(contentProjects.userId, userId));
-
-    const [weekCount] = await db
-      .select({ count: count() })
-      .from(generations)
-      .where(
-        and(
-          eq(generations.userId, userId),
-          gte(generations.createdAt, weekAgo)
-        )
-      );
-
-    const recent = await db
-      .select()
-      .from(generations)
-      .where(eq(generations.userId, userId))
-      .orderBy(desc(generations.createdAt))
-      .limit(5);
-
-    return {
-      totalGenerations: genCount?.count ?? 0,
-      totalProjects: projectCount?.count ?? 0,
-      weekGenerations: weekCount?.count ?? 0,
-      recent,
-    };
-  } catch {
-    return { totalGenerations: 0, totalProjects: 0, weekGenerations: 0, recent: [] };
-  }
-}
-
 export default async function DashboardPage() {
   const { userId } = await auth();
   const stats = userId
-    ? await getStats(userId)
+    ? await getDashboardStats(userId)
     : { totalGenerations: 0, totalProjects: 0, weekGenerations: 0, recent: [] };
 
   return (
