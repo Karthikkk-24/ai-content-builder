@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import {
   AlignLeft,
   Heading1,
-  Image,
+  Image as ImageIcon,
   Minus,
   MousePointerClick,
   Plus,
@@ -22,7 +22,7 @@ import type { ContentBlock } from "@/lib/db/schema";
 const blockTypes = [
   { type: "heading" as const, label: "Heading", icon: Heading1 },
   { type: "paragraph" as const, label: "Paragraph", icon: AlignLeft },
-  { type: "image" as const, label: "Image", icon: Image },
+  { type: "image" as const, label: "Image", icon: ImageIcon },
   { type: "divider" as const, label: "Divider", icon: Minus },
   { type: "cta" as const, label: "CTA", icon: MousePointerClick },
 ];
@@ -197,7 +197,7 @@ export function ContentBuilder({
                     )}
                     {block.type === "image" && (
                       <div className="flex items-center gap-2 text-sm text-zinc-500">
-                        <Image className="h-4 w-4" strokeWidth={1.5} />
+                        <ImageIcon className="h-4 w-4" strokeWidth={1.5} />
                         {block.url || "No image URL"}
                       </div>
                     )}

@@ -11,9 +11,27 @@ const GEMINI_MODELS = [
   "gemini-flash-lite-latest",
 ] as const;
 
+const GEMINI_RETRY_DELAYS_MS = [400, 1_200, 2_500] as const;
+const GEMINI_MAX_ATTEMPTS = GEMINI_RETRY_DELAYS_MS.length + 1;
+
 const google = createGoogleGenerativeAI({
   apiKey: process.env.GOOGLE_GENERATIVE_AI_API_KEY,
 });
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function getErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : String(error);
+}
+
+function isRetryableGeminiError(error: unknown) {
+  const message = getErrorMessage(error);
+  return /quota|rate limit|resource_exhausted|too many requests|timeout|network|fetch failed|temporar/i.test(
+    message
+  );
+}
 
 function getGroqClient() {
   if (!process.env.GROQ_API_KEY) {
@@ -38,13 +56,29 @@ async function generateWithGemini({
     throw new Error("Google AI API key is missing");
   }
 
-  const result = await generateText({
-    model: google(modelName),
-    system,
-    prompt,
-  });
+  let lastError: unknown;
 
-  return { text: result.text, provider: "gemini" as const, model: modelName };
+  for (let attempt = 0; attempt < GEMINI_MAX_ATTEMPTS; attempt++) {
+    try {
+      const result = await generateText({
+        model: google(modelName),
+        system,
+        prompt,
+      });
+
+      return { text: result.text, provider: "gemini" as const, model: modelName };
+    } catch (error) {
+      lastError = error;
+
+      if (!isRetryableGeminiError(error) || attempt === GEMINI_MAX_ATTEMPTS - 1) {
+        break;
+      }
+
+      await sleep(GEMINI_RETRY_DELAYS_MS[attempt]);
+    }
+  }
+
+  throw lastError instanceof Error ? lastError : new Error(String(lastError));
 }
 
 async function generateWithGroq({
@@ -65,7 +99,11 @@ async function generateWithGroq({
     prompt,
   });
 
-  return { text: result.text, provider: "groq" as const, model: "llama-3.3-70b-versatile" };
+  return {
+    text: result.text,
+    provider: "groq" as const,
+    model: "llama-3.3-70b-versatile",
+  };
 }
 
 export async function generateTextWithFallback({
@@ -129,26 +167,39 @@ export async function analyzeReferenceImage(imageUrl: string): Promise<string> {
 
     for (const modelName of GEMINI_MODELS) {
       try {
-        const result = await generateText({
-          model: google(modelName),
-          messages: [
-            {
-              role: "user",
-              content: [
+        for (let attempt = 0; attempt < GEMINI_MAX_ATTEMPTS; attempt++) {
+          try {
+            const result = await generateText({
+              model: google(modelName),
+              messages: [
                 {
-                  type: "text",
-                  text: "Describe this image in detail for use as a reference in AI image generation. Focus on style, composition, colors, lighting, subject matter, and mood. Be concise but descriptive.",
-                },
-                {
-                  type: "image",
-                  image: `data:${contentType};base64,${base64}`,
+                  role: "user",
+                  content: [
+                    {
+                      type: "text",
+                      text: "Describe this image in detail for use as a reference in AI image generation. Focus on style, composition, colors, lighting, subject matter, and mood. Be concise but descriptive.",
+                    },
+                    {
+                      type: "image",
+                      image: `data:${contentType};base64,${base64}`,
+                    },
+                  ],
                 },
               ],
-            },
-          ],
-        });
+            });
 
-        return result.text;
+            return result.text;
+          } catch (error) {
+            if (
+              !isRetryableGeminiError(error) ||
+              attempt === GEMINI_MAX_ATTEMPTS - 1
+            ) {
+              throw error;
+            }
+
+            await sleep(GEMINI_RETRY_DELAYS_MS[attempt]);
+          }
+        }
       } catch {
         continue;
       }

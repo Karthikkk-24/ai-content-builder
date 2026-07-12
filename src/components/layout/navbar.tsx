@@ -11,7 +11,6 @@ interface NavbarProps {
 }
 
 export function Navbar({
-  collapsed,
   onToggleSidebar,
   onToggleMobile,
 }: NavbarProps) {

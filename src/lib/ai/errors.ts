@@ -23,7 +23,7 @@ export function formatAiError(error: unknown): string {
     error instanceof Error ? error.message : "AI generation failed. Please try again.";
 
   if (QUOTA_PATTERNS.some((pattern) => pattern.test(message))) {
-    return "AI quota exceeded. Please wait a moment and try again, or add a Groq API key in your environment for fallback.";
+    return "Google AI could not complete the request after several attempts. The app will use Groq automatically when it is configured.";
   }
 
   if (AUTH_PATTERNS.some((pattern) => pattern.test(message))) {

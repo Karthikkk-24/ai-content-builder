@@ -2,7 +2,6 @@ import Link from "next/link";
 import {
   ArrowRight,
   FileText,
-  Image,
   Sparkles,
   Upload,
   Wand2,
