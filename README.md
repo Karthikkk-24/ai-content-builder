@@ -52,18 +52,19 @@ cp .env.example .env.local
 
 ### 3. Set up the database
 
-Run the migration SQL against your Neon database:
+Your Neon `DATABASE_URL` goes in `.env.local` (never commit this file).
+
+Run migrations against your Neon database:
 
 ```bash
-# Using psql or Neon SQL editor, run:
-# drizzle/0000_init.sql
+# Option A: push schema directly
+npm run db:push
+
+# Option B: apply generated migration
+psql $DATABASE_URL -f drizzle/0000_init.sql
 ```
 
-Or use Drizzle Kit:
-
-```bash
-npx drizzle-kit push
-```
+The schema creates four tables: `users`, `content_projects`, `generations`, and `reference_images`.
 
 ### 4. Configure Clerk webhook
 
