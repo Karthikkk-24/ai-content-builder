@@ -27,6 +27,7 @@ interface GeneratorLayoutProps {
   showPromptUpgrade?: boolean;
   outputType?: "text" | "image";
   extraPayload?: Record<string, unknown>;
+  charLimit?: number;
   children?: React.ReactNode;
 }
 
@@ -40,6 +41,7 @@ export function GeneratorLayout({
   showPromptUpgrade = true,
   outputType = "text",
   extraPayload = {},
+  charLimit,
 }: GeneratorLayoutProps) {
   const [prompt, setPrompt] = useState("");
   const [context, setContext] = useState<Record<string, string>>({});
@@ -174,6 +176,15 @@ export function GeneratorLayout({
               onChange={(e) => setPrompt(e.target.value)}
               rows={6}
             />
+            {charLimit && (
+              <p
+                className={`text-xs ${
+                  prompt.length > charLimit ? "text-zinc-900 font-medium" : "text-zinc-400"
+                }`}
+              >
+                {prompt.length} / {charLimit} characters
+              </p>
+            )}
             {showPromptUpgrade && (
               <Button
                 variant="outline"
@@ -253,9 +264,16 @@ export function GeneratorLayout({
                 />
               </div>
             ) : (
-              <pre className="whitespace-pre-wrap rounded-md bg-zinc-50 p-4 text-sm text-zinc-900">
-                {output}
-              </pre>
+              <div>
+                <pre className="whitespace-pre-wrap rounded-md bg-zinc-50 p-4 text-sm text-zinc-900">
+                  {output}
+                </pre>
+                {charLimit && output && (
+                  <p className="mt-2 text-xs text-zinc-400">
+                    Output length: {output.length} characters
+                  </p>
+                )}
+              </div>
             )}
           </CardContent>
         </Card>

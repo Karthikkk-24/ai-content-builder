@@ -1,5 +1,5 @@
 import { auth } from "@clerk/nextjs/server";
-import { eq, count, desc } from "drizzle-orm";
+import { eq, count, desc, gte, and } from "drizzle-orm";
 import Link from "next/link";
 import {
   FileText,
@@ -28,6 +28,9 @@ const quickActions = [
 
 async function getStats(userId: string) {
   try {
+    const weekAgo = new Date();
+    weekAgo.setDate(weekAgo.getDate() - 7);
+
     const [genCount] = await db
       .select({ count: count() })
       .from(generations)
@@ -37,6 +40,16 @@ async function getStats(userId: string) {
       .select({ count: count() })
       .from(contentProjects)
       .where(eq(contentProjects.userId, userId));
+
+    const [weekCount] = await db
+      .select({ count: count() })
+      .from(generations)
+      .where(
+        and(
+          eq(generations.userId, userId),
+          gte(generations.createdAt, weekAgo)
+        )
+      );
 
     const recent = await db
       .select()
@@ -48,16 +61,19 @@ async function getStats(userId: string) {
     return {
       totalGenerations: genCount?.count ?? 0,
       totalProjects: projectCount?.count ?? 0,
+      weekGenerations: weekCount?.count ?? 0,
       recent,
     };
   } catch {
-    return { totalGenerations: 0, totalProjects: 0, recent: [] };
+    return { totalGenerations: 0, totalProjects: 0, weekGenerations: 0, recent: [] };
   }
 }
 
 export default async function DashboardPage() {
   const { userId } = await auth();
-  const stats = userId ? await getStats(userId) : { totalGenerations: 0, totalProjects: 0, recent: [] };
+  const stats = userId
+    ? await getStats(userId)
+    : { totalGenerations: 0, totalProjects: 0, weekGenerations: 0, recent: [] };
 
   return (
     <div className="space-y-8">
@@ -84,7 +100,7 @@ export default async function DashboardPage() {
         <Card>
           <CardHeader className="pb-2">
             <CardDescription>This Week</CardDescription>
-            <CardTitle className="text-3xl">{stats.recent.length}</CardTitle>
+            <CardTitle className="text-3xl">{stats.weekGenerations}</CardTitle>
           </CardHeader>
         </Card>
       </div>

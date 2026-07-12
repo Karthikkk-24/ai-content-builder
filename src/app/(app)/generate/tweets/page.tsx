@@ -9,6 +9,7 @@ export default function TweetsPage() {
       apiEndpoint="/api/ai/generate/tweet"
       outputType="text"
       showReferenceImage={false}
+      charLimit={280}
       contextFields={[
         {
           key: "tone",
