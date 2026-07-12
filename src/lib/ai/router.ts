@@ -160,10 +160,21 @@ export async function analyzeReferenceImage(imageUrl: string): Promise<string> {
   }
 
   try {
-    const response = await fetch(imageUrl);
-    const buffer = await response.arrayBuffer();
-    const base64 = Buffer.from(buffer).toString("base64");
-    const contentType = response.headers.get("content-type") || "image/jpeg";
+    let base64: string;
+    let contentType: string;
+
+    if (imageUrl.startsWith("data:")) {
+      const match = imageUrl.match(/^data:([^;]+);base64,(.+)$/);
+      if (!match) return "";
+      contentType = match[1];
+      base64 = match[2];
+    } else {
+      const response = await fetch(imageUrl);
+      if (!response.ok) return "";
+      const buffer = await response.arrayBuffer();
+      base64 = Buffer.from(buffer).toString("base64");
+      contentType = response.headers.get("content-type") || "image/jpeg";
+    }
 
     for (const modelName of GEMINI_MODELS) {
       try {

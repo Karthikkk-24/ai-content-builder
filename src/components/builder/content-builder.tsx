@@ -64,6 +64,7 @@ export function ContentBuilder({
   const [blocks, setBlocks] = useState<ContentBlock[]>(initialBlocks);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const addBlock = (type: ContentBlock["type"]) => {
     const newBlock: ContentBlock = {
@@ -88,13 +89,18 @@ export function ContentBuilder({
 
   const handleSave = useCallback(async () => {
     setSaving(true);
+    setSaveError(null);
     try {
       if (projectId) {
-        await fetch(`/api/projects/${projectId}`, {
+        const res = await fetch(`/api/projects/${projectId}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ title, blocks }),
         });
+        if (!res.ok) {
+          const data = await res.json();
+          throw new Error(data.error || "Failed to save project");
+        }
       } else {
         const res = await fetch("/api/projects", {
           method: "POST",
@@ -102,8 +108,11 @@ export function ContentBuilder({
           body: JSON.stringify({ title, blocks }),
         });
         const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Failed to create project");
         if (data.id) router.push(`/builder/${data.id}`);
       }
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : "Failed to save");
     } finally {
       setSaving(false);
     }
@@ -145,6 +154,12 @@ export function ContentBuilder({
           </Button>
         </div>
       </div>
+
+      {saveError && (
+        <div className="rounded-md border border-zinc-200 bg-zinc-50 p-3 text-sm text-zinc-600">
+          {saveError}
+        </div>
+      )}
 
       <div className="grid gap-6 lg:grid-cols-12">
         <div className="lg:col-span-2">

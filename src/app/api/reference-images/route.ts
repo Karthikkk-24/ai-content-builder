@@ -6,7 +6,7 @@ import { referenceImages } from "@/lib/db/schema";
 import { ensureUser } from "@/lib/db/users";
 
 const schema = z.object({
-  url: z.string().url(),
+  url: z.string().min(1),
   fileName: z.string().min(1),
 });
 

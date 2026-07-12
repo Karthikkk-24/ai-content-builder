@@ -14,6 +14,7 @@ import {
 import { db } from "@/lib/db";
 import { generations } from "@/lib/db/schema";
 import { ensureUser } from "@/lib/db/users";
+import { sanitizeReferenceImageForStorage } from "@/lib/image-utils";
 import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
 
 const schema = z.object({
@@ -67,7 +68,7 @@ export async function POST(req: Request) {
       type: "prompt_upgrade",
       inputPrompt: prompt,
       outputContent: text,
-      referenceImageUrl: referenceImageUrl ?? null,
+      referenceImageUrl: sanitizeReferenceImageForStorage(referenceImageUrl),
       metadata: { context, remarks: remarks ?? null },
     });
 

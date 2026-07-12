@@ -12,6 +12,7 @@ import { buildPosterSystemPrompt, appendRemarks } from "@/lib/ai/prompts/prompt-
 import { db } from "@/lib/db";
 import { generations } from "@/lib/db/schema";
 import { ensureUser } from "@/lib/db/users";
+import { sanitizeReferenceImageForStorage, sanitizeGeneratedOutputForStorage } from "@/lib/image-utils";
 import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
 
 const schema = z.object({
@@ -71,8 +72,8 @@ export async function POST(req: Request) {
       userId,
       type: "poster",
       inputPrompt: prompt,
-      outputContent: imageUrl,
-      referenceImageUrl: referenceImageUrl ?? null,
+      outputContent: sanitizeGeneratedOutputForStorage(imageUrl),
+      referenceImageUrl: sanitizeReferenceImageForStorage(referenceImageUrl),
       metadata: { context, provider, remarks: remarks ?? null },
     });
 

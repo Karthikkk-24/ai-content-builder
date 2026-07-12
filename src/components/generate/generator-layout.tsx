@@ -240,6 +240,13 @@ export function GeneratorLayout({
         Generate
       </Button>
 
+      {loading && output && (
+        <div className="flex items-center gap-2 text-sm text-zinc-500">
+          <Loader2 className="h-4 w-4 animate-spin" strokeWidth={1.5} />
+          Regenerating...
+        </div>
+      )}
+
       {error && (
         <div className="rounded-md border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-600">
           {error}
@@ -264,6 +271,7 @@ export function GeneratorLayout({
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
+            <div className={loading ? "pointer-events-none opacity-50" : ""}>
             {outputType === "image" ? (
               <div className="relative aspect-square max-w-lg overflow-hidden rounded-lg border border-zinc-200">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -285,6 +293,8 @@ export function GeneratorLayout({
                 )}
               </div>
             )}
+
+            </div>
 
             <div className="space-y-2 border-t border-zinc-100 pt-4">
               <Label htmlFor="remarks">Remarks (optional)</Label>
