@@ -77,3 +77,11 @@ Style: ${context?.style || "photorealistic"}
 ${context?.negativePrompt ? `Avoid: ${context.negativePrompt}` : ""}
 Return only the image generation prompt, no explanations.`;
 }
+
+export function appendRemarks(message: string, remarks?: string) {
+  if (!remarks?.trim()) {
+    return message;
+  }
+
+  return `${message}\n\nUser remarks for this regeneration (incorporate these):\n${remarks.trim()}`;
+}

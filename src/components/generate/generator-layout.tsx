@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Copy, Download, Loader2, Sparkles } from "lucide-react";
+import { Copy, Download, Loader2, RefreshCw, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -46,10 +46,48 @@ export function GeneratorLayout({
   const [prompt, setPrompt] = useState("");
   const [context, setContext] = useState<Record<string, string>>({});
   const [referenceImage, setReferenceImage] = useState<string | null>(null);
+  const [remarks, setRemarks] = useState("");
   const [output, setOutput] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [upgrading, setUpgrading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const runGeneration = async (regenerate = false) => {
+    if (!prompt.trim()) return;
+    setLoading(true);
+    setError(null);
+    if (!regenerate) {
+      setOutput(null);
+      setRemarks("");
+    }
+
+    try {
+      const payload: Record<string, unknown> = {
+        prompt,
+        context: { ...context, generationType },
+        referenceImageUrl: referenceImage,
+        ...extraPayload,
+      };
+
+      if (regenerate && remarks.trim()) {
+        payload.remarks = remarks.trim();
+      }
+
+      const res = await fetch(apiEndpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Generation failed");
+      setOutput(data.output);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Generation failed");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleUpgradePrompt = async () => {
     if (!prompt.trim()) return;
@@ -74,34 +112,6 @@ export function GeneratorLayout({
       setError(err instanceof Error ? err.message : "Failed to upgrade prompt");
     } finally {
       setUpgrading(false);
-    }
-  };
-
-  const handleGenerate = async () => {
-    if (!prompt.trim()) return;
-    setLoading(true);
-    setError(null);
-    setOutput(null);
-
-    try {
-      const res = await fetch(apiEndpoint, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          prompt,
-          context: { ...context, generationType },
-          referenceImageUrl: referenceImage,
-          ...extraPayload,
-        }),
-      });
-
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Generation failed");
-      setOutput(data.output);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Generation failed");
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -221,8 +231,8 @@ export function GeneratorLayout({
         )}
       </div>
 
-      <Button onClick={handleGenerate} disabled={loading || !prompt.trim()}>
-        {loading ? (
+      <Button onClick={() => runGeneration(false)} disabled={loading || !prompt.trim()}>
+        {loading && !output ? (
           <Loader2 className="h-4 w-4 animate-spin" strokeWidth={1.5} />
         ) : (
           <Sparkles className="h-4 w-4" strokeWidth={1.5} />
@@ -253,7 +263,7 @@ export function GeneratorLayout({
               )}
             </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
             {outputType === "image" ? (
               <div className="relative aspect-square max-w-lg overflow-hidden rounded-lg border border-zinc-200">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -275,6 +285,33 @@ export function GeneratorLayout({
                 )}
               </div>
             )}
+
+            <div className="space-y-2 border-t border-zinc-100 pt-4">
+              <Label htmlFor="remarks">Remarks (optional)</Label>
+              <Textarea
+                id="remarks"
+                placeholder="e.g. Make it shorter, use a more casual tone, emphasize the product name..."
+                value={remarks}
+                onChange={(e) => setRemarks(e.target.value)}
+                rows={3}
+              />
+              <p className="text-xs text-zinc-400">
+                Add feedback before regenerating. Remarks are only used when you click Regenerate.
+              </p>
+            </div>
+
+            <Button
+              variant="outline"
+              onClick={() => runGeneration(true)}
+              disabled={loading || !prompt.trim()}
+            >
+              {loading ? (
+                <Loader2 className="h-4 w-4 animate-spin" strokeWidth={1.5} />
+              ) : (
+                <RefreshCw className="h-4 w-4" strokeWidth={1.5} />
+              )}
+              Regenerate
+            </Button>
           </CardContent>
         </Card>
       )}

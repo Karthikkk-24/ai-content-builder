@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Copy, Loader2, Sparkles } from "lucide-react";
+import { Copy, Loader2, RefreshCw, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -11,25 +11,36 @@ import { ReferenceImageUploader } from "@/components/upload/reference-image-uplo
 export default function PromptUpgradePage() {
   const [prompt, setPrompt] = useState("");
   const [enhanced, setEnhanced] = useState("");
+  const [remarks, setRemarks] = useState("");
   const [referenceImage, setReferenceImage] = useState<string | null>(null);
   const [generationType, setGenerationType] = useState("general");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleUpgrade = async () => {
+  const runUpgrade = async (regenerate = false) => {
     if (!prompt.trim()) return;
     setLoading(true);
     setError(null);
+    if (!regenerate) {
+      setEnhanced("");
+      setRemarks("");
+    }
 
     try {
+      const payload: Record<string, unknown> = {
+        prompt,
+        context: { generationType },
+        referenceImageUrl: referenceImage,
+      };
+
+      if (regenerate && remarks.trim()) {
+        payload.remarks = remarks.trim();
+      }
+
       const res = await fetch("/api/ai/prompt-upgrade", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          prompt,
-          context: { generationType },
-          referenceImageUrl: referenceImage,
-        }),
+        body: JSON.stringify(payload),
       });
 
       const data = await res.json();
@@ -76,8 +87,8 @@ export default function PromptUpgradePage() {
               onChange={(e) => setPrompt(e.target.value)}
               rows={8}
             />
-            <Button onClick={handleUpgrade} disabled={loading || !prompt.trim()}>
-              {loading ? (
+            <Button onClick={() => runUpgrade(false)} disabled={loading || !prompt.trim()}>
+              {loading && !enhanced ? (
                 <Loader2 className="h-4 w-4 animate-spin" strokeWidth={1.5} />
               ) : (
                 <Sparkles className="h-4 w-4" strokeWidth={1.5} />
@@ -119,7 +130,7 @@ export default function PromptUpgradePage() {
               Copy
             </Button>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
             <div className="space-y-4">
               <div>
                 <Label className="text-zinc-400">Original</Label>
@@ -134,6 +145,33 @@ export default function PromptUpgradePage() {
                 </p>
               </div>
             </div>
+
+            <div className="space-y-2 border-t border-zinc-100 pt-4">
+              <Label htmlFor="remarks">Remarks (optional)</Label>
+              <Textarea
+                id="remarks"
+                placeholder="e.g. Add more detail about lighting, keep it concise, focus on typography..."
+                value={remarks}
+                onChange={(e) => setRemarks(e.target.value)}
+                rows={3}
+              />
+              <p className="text-xs text-zinc-400">
+                Add feedback before regenerating. Remarks are only used when you click Regenerate.
+              </p>
+            </div>
+
+            <Button
+              variant="outline"
+              onClick={() => runUpgrade(true)}
+              disabled={loading || !prompt.trim()}
+            >
+              {loading ? (
+                <Loader2 className="h-4 w-4 animate-spin" strokeWidth={1.5} />
+              ) : (
+                <RefreshCw className="h-4 w-4" strokeWidth={1.5} />
+              )}
+              Regenerate
+            </Button>
           </CardContent>
         </Card>
       )}

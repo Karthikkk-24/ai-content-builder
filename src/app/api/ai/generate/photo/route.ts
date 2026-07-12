@@ -7,7 +7,7 @@ import {
   generateImage,
   generateTextWithFallback,
 } from "@/lib/ai/router";
-import { buildPhotoSystemPrompt } from "@/lib/ai/prompts/prompt-upgrade";
+import { buildPhotoSystemPrompt, appendRemarks } from "@/lib/ai/prompts/prompt-upgrade";
 import { db } from "@/lib/db";
 import { generations } from "@/lib/db/schema";
 import { ensureUser } from "@/lib/db/users";
@@ -17,6 +17,7 @@ const schema = z.object({
   prompt: z.string().min(1),
   context: z.record(z.string(), z.string()).optional(),
   referenceImageUrl: z.string().nullable().optional(),
+  remarks: z.string().optional(),
 });
 
 export async function POST(req: Request) {
@@ -38,13 +39,14 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Invalid input" }, { status: 400 });
     }
 
-    const { prompt, context, referenceImageUrl } = parsed.data;
+    const { prompt, context, referenceImageUrl, remarks } = parsed.data;
+    const promptWithRemarks = appendRemarks(prompt, remarks);
 
-    let imagePrompt = prompt;
+    let imagePrompt = promptWithRemarks;
     if (referenceImageUrl) {
       const refDesc = await analyzeReferenceImage(referenceImageUrl);
       if (refDesc) {
-        imagePrompt = `${prompt}. Match this reference composition and style: ${refDesc}`;
+        imagePrompt = `${promptWithRemarks}. Match this reference composition and style: ${refDesc}`;
       }
     } else {
       const { text } = await generateTextWithFallback({
@@ -52,7 +54,7 @@ export async function POST(req: Request) {
           style: context?.style,
           negativePrompt: context?.negativePrompt,
         }),
-        prompt,
+        prompt: promptWithRemarks,
       });
       imagePrompt = text;
     }
@@ -65,7 +67,7 @@ export async function POST(req: Request) {
       inputPrompt: prompt,
       outputContent: imageUrl,
       referenceImageUrl: referenceImageUrl ?? null,
-      metadata: { context, provider },
+      metadata: { context, provider, remarks: remarks ?? null },
     });
 
     return NextResponse.json({ output: imageUrl });

@@ -8,6 +8,7 @@ import {
 } from "@/lib/ai/router";
 import {
   PROMPT_UPGRADE_SYSTEM,
+  appendRemarks,
   buildPromptUpgradeUserMessage,
 } from "@/lib/ai/prompts/prompt-upgrade";
 import { db } from "@/lib/db";
@@ -19,6 +20,7 @@ const schema = z.object({
   prompt: z.string().min(1),
   context: z.record(z.string(), z.string()).optional(),
   referenceImageUrl: z.string().nullable().optional(),
+  remarks: z.string().optional(),
 });
 
 export async function POST(req: Request) {
@@ -40,17 +42,20 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Invalid input" }, { status: 400 });
     }
 
-    const { prompt, context, referenceImageUrl } = parsed.data;
+    const { prompt, context, referenceImageUrl, remarks } = parsed.data;
 
     let referenceDescription = "";
     if (referenceImageUrl) {
       referenceDescription = await analyzeReferenceImage(referenceImageUrl);
     }
 
-    const userMessage = buildPromptUpgradeUserMessage(prompt, {
-      ...context,
-      referenceDescription,
-    });
+    const userMessage = appendRemarks(
+      buildPromptUpgradeUserMessage(prompt, {
+        ...context,
+        referenceDescription,
+      }),
+      remarks
+    );
 
     const { text } = await generateTextWithFallback({
       system: PROMPT_UPGRADE_SYSTEM,
@@ -63,7 +68,7 @@ export async function POST(req: Request) {
       inputPrompt: prompt,
       outputContent: text,
       referenceImageUrl: referenceImageUrl ?? null,
-      metadata: { context },
+      metadata: { context, remarks: remarks ?? null },
     });
 
     return NextResponse.json({

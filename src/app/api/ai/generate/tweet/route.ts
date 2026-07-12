@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { formatAiError } from "@/lib/ai/errors";
 import { generateTextWithFallback } from "@/lib/ai/router";
-import { buildTweetSystemPrompt } from "@/lib/ai/prompts/prompt-upgrade";
+import { buildTweetSystemPrompt, appendRemarks } from "@/lib/ai/prompts/prompt-upgrade";
 import { db } from "@/lib/db";
 import { generations } from "@/lib/db/schema";
 import { ensureUser } from "@/lib/db/users";
@@ -12,6 +12,7 @@ import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
 const schema = z.object({
   prompt: z.string().min(1),
   context: z.record(z.string(), z.string()).optional(),
+  remarks: z.string().optional(),
 });
 
 export async function POST(req: Request) {
@@ -33,7 +34,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Invalid input" }, { status: 400 });
     }
 
-    const { prompt, context } = parsed.data;
+    const { prompt, context, remarks } = parsed.data;
     const generationType = context?.generationType || "tweet";
 
     let systemPrompt = buildTweetSystemPrompt({
@@ -53,7 +54,7 @@ Include relevant hashtags. Return only the caption.`;
 
     const { text, provider } = await generateTextWithFallback({
       system: systemPrompt,
-      prompt,
+      prompt: appendRemarks(prompt, remarks),
     });
 
     await db.insert(generations).values({
@@ -61,7 +62,7 @@ Include relevant hashtags. Return only the caption.`;
       type: generationType,
       inputPrompt: prompt,
       outputContent: text,
-      metadata: { context, provider },
+      metadata: { context, provider, remarks: remarks ?? null },
     });
 
     return NextResponse.json({ output: text });
