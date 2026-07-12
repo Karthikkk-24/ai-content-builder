@@ -1,6 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { formatAiError } from "@/lib/ai/errors";
 import { generateTextWithFallback } from "@/lib/ai/router";
 import { buildTweetSystemPrompt } from "@/lib/ai/prompts/prompt-upgrade";
 import { db } from "@/lib/db";
@@ -66,9 +67,6 @@ Include relevant hashtags. Return only the caption.`;
     return NextResponse.json({ output: text });
   } catch (error) {
     console.error("Tweet generation error:", error);
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Internal error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: formatAiError(error) }, { status: 500 });
   }
 }

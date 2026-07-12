@@ -1,6 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { formatAiError } from "@/lib/ai/errors";
 import {
   analyzeReferenceImage,
   generateTextWithFallback,
@@ -71,9 +72,6 @@ export async function POST(req: Request) {
     });
   } catch (error) {
     console.error("Prompt upgrade error:", error);
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Internal error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: formatAiError(error) }, { status: 500 });
   }
 }
