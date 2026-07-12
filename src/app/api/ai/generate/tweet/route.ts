@@ -1,0 +1,66 @@
+import { auth } from "@clerk/nextjs/server";
+import { NextResponse } from "next/server";
+import { z } from "zod";
+import { generateTextWithFallback } from "@/lib/ai/router";
+import { buildTweetSystemPrompt } from "@/lib/ai/prompts/prompt-upgrade";
+import { db } from "@/lib/db";
+import { generations } from "@/lib/db/schema";
+
+const schema = z.object({
+  prompt: z.string().min(1),
+  context: z.record(z.string(), z.string()).optional(),
+});
+
+export async function POST(req: Request) {
+  try {
+    const { userId } = await auth();
+    if (!userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const body = await req.json();
+    const parsed = schema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json({ error: "Invalid input" }, { status: 400 });
+    }
+
+    const { prompt, context } = parsed.data;
+    const generationType = context?.generationType || "tweet";
+
+    let systemPrompt = buildTweetSystemPrompt({
+      tone: context?.tone,
+      audience: context?.audience,
+      threadMode: context?.threadMode === "thread",
+    });
+
+    if (generationType === "blog") {
+      systemPrompt =
+        "You are a content strategist. Generate a detailed blog post outline with headings, subheadings, and key points for each section. Return only the outline in markdown format.";
+    } else if (generationType === "caption") {
+      systemPrompt = `You are a social media copywriter. Create an engaging caption for ${context?.platform || "social media"}.
+Tone: ${context?.tone || "professional"}
+Include relevant hashtags. Return only the caption.`;
+    }
+
+    const { text, provider } = await generateTextWithFallback({
+      system: systemPrompt,
+      prompt,
+    });
+
+    await db.insert(generations).values({
+      userId,
+      type: generationType,
+      inputPrompt: prompt,
+      outputContent: text,
+      metadata: { context, provider },
+    });
+
+    return NextResponse.json({ output: text });
+  } catch (error) {
+    console.error("Tweet generation error:", error);
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Internal error" },
+      { status: 500 }
+    );
+  }
+}
