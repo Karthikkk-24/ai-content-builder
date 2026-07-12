@@ -5,94 +5,53 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { isClerkConfigured } from "@/lib/clerk-config";
-import { isRedisConfigured } from "@/lib/redis";
 
 export default function SettingsPage() {
-  const redisEnabled = isRedisConfigured();
-  const clerkConfigured = isClerkConfigured();
-
   return (
     <div className="space-y-8">
       <div>
         <h1 className="text-2xl font-semibold text-zinc-900">Settings</h1>
-        <p className="mt-1 text-sm text-zinc-500">Manage your preferences</p>
+        <p className="mt-1 text-sm text-zinc-500">Manage your account and preferences</p>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Performance</CardTitle>
-          <CardDescription>Redis caching and session persistence</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="flex items-center justify-between rounded-md border border-zinc-200 p-3">
-            <div>
-              <p className="text-sm font-medium">Redis Cache</p>
-              <p className="text-xs text-zinc-500">
-                Speeds up dashboard, profile, and rate limiting
-              </p>
-            </div>
-            <span className="text-xs text-zinc-400">
-              {redisEnabled ? "Connected" : "In-memory fallback"}
-            </span>
-          </div>
-          <div className="flex items-center justify-between rounded-md border border-zinc-200 p-3">
-            <div>
-              <p className="text-sm font-medium">Session Persistence</p>
-              <p className="text-xs text-zinc-500">
-                Keeps you signed in with automatic session refresh
-              </p>
-            </div>
-            <span className="text-xs text-zinc-400">
-              {clerkConfigured ? "Active" : "Keyless dev mode"}
-            </span>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">AI Providers</CardTitle>
-          <CardDescription>
-            Free-tier providers configured for this app
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="flex items-center justify-between rounded-md border border-zinc-200 p-3">
-            <div>
-              <p className="text-sm font-medium">Gemini 3.5 Flash</p>
-              <p className="text-xs text-zinc-500">Text generation & vision</p>
-            </div>
-            <span className="text-xs text-zinc-400">Primary</span>
-          </div>
-          <div className="flex items-center justify-between rounded-md border border-zinc-200 p-3">
-            <div>
-              <p className="text-sm font-medium">Groq Llama 3.3 70B</p>
-              <p className="text-xs text-zinc-500">Text fallback</p>
-            </div>
-            <span className="text-xs text-zinc-400">Fallback</span>
-          </div>
-          <div className="flex items-center justify-between rounded-md border border-zinc-200 p-3">
-            <div>
-              <p className="text-sm font-medium">Pollinations Flux</p>
-              <p className="text-xs text-zinc-500">Image generation</p>
-            </div>
-            <span className="text-xs text-zinc-400">Primary</span>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Stay signed in</CardTitle>
-          <CardDescription>Recommended Clerk dashboard settings</CardDescription>
+          <CardTitle className="text-base">Account</CardTitle>
+          <CardDescription>Your profile and sign-in are managed securely</CardDescription>
         </CardHeader>
         <CardContent>
           <p className="text-sm text-zinc-500">
-            In Clerk Dashboard → Sessions, set session lifetime to 30 days and
-            enable multi-session if you use multiple devices. Add your production
-            Clerk keys to <code className="text-xs">.env.local</code> for persistent
-            sessions outside development keyless mode.
+            Update your name, email, password, and connected accounts from the
+            profile menu in the top-right corner.
+          </p>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Content</CardTitle>
+          <CardDescription>How your work is saved</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3 text-sm text-zinc-500">
+          <p>
+            AI generations are automatically saved as projects in the Content Builder
+            so you can edit, expand, and export them anytime.
+          </p>
+          <p>
+            You can also create blank projects manually from the Content Builder page.
+          </p>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Usage</CardTitle>
+          <CardDescription>AI generation limits</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-zinc-500">
+            Free-tier AI providers apply daily rate limits. If generation fails,
+            wait a moment and try again.
           </p>
         </CardContent>
       </Card>

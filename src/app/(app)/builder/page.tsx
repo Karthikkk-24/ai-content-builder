@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { FileText, Plus } from "lucide-react";
+import { FileText, Loader2, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ContentBuilder } from "@/components/builder/content-builder";
@@ -16,12 +16,21 @@ interface Project {
 export default function BuilderPage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [creating, setCreating] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     fetch("/api/projects")
-      .then((r) => r.json())
-      .then(setProjects)
-      .catch(() => setProjects([]));
+      .then(async (r) => {
+        const data = await r.json();
+        if (!r.ok) throw new Error(data.error || "Failed to load projects");
+        setProjects(data);
+      })
+      .catch((err) => {
+        setError(err instanceof Error ? err.message : "Failed to load projects");
+        setProjects([]);
+      })
+      .finally(() => setLoading(false));
   }, []);
 
   if (creating) {
@@ -46,7 +55,7 @@ export default function BuilderPage() {
         <div>
           <h1 className="text-2xl font-semibold text-zinc-900">Content Builder</h1>
           <p className="mt-1 text-sm text-zinc-500">
-            Create rich content with blocks
+            Edit and export your AI-generated content
           </p>
         </div>
         <Button onClick={() => setCreating(true)}>
@@ -55,11 +64,24 @@ export default function BuilderPage() {
         </Button>
       </div>
 
-      {projects.length === 0 ? (
+      {loading ? (
+        <div className="flex items-center gap-2 text-sm text-zinc-500">
+          <Loader2 className="h-4 w-4 animate-spin" strokeWidth={1.5} />
+          Loading projects...
+        </div>
+      ) : error ? (
+        <Card>
+          <CardContent className="py-8 text-center text-sm text-zinc-600">
+            {error}
+          </CardContent>
+        </Card>
+      ) : projects.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center py-12">
             <FileText className="h-8 w-8 text-zinc-300" strokeWidth={1.5} />
-            <p className="mt-4 text-sm text-zinc-500">No projects yet</p>
+            <p className="mt-4 text-sm text-zinc-500">
+              No projects yet. Generate content with AI tools or create a blank project.
+            </p>
             <Button className="mt-4" onClick={() => setCreating(true)}>
               Create your first project
             </Button>

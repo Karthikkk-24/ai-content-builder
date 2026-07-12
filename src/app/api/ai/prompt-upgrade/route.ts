@@ -15,6 +15,7 @@ import {
 import { db } from "@/lib/db";
 import { generations } from "@/lib/db/schema";
 import { ensureUser } from "@/lib/db/users";
+import { saveTextGenerationAsProject } from "@/lib/projects-from-generation";
 import { sanitizeReferenceImageForStorage } from "@/lib/image-utils";
 import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
 
@@ -74,6 +75,12 @@ export async function POST(req: Request) {
     });
 
     await invalidateUserCache(userId);
+    await saveTextGenerationAsProject({
+      userId,
+      type: "prompt_upgrade",
+      prompt,
+      output: text,
+    });
 
     return NextResponse.json({
       original: prompt,

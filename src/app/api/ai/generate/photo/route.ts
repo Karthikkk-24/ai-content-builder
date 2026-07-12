@@ -12,6 +12,7 @@ import { buildPhotoSystemPrompt, appendRemarks } from "@/lib/ai/prompts/prompt-u
 import { db } from "@/lib/db";
 import { generations } from "@/lib/db/schema";
 import { ensureUser } from "@/lib/db/users";
+import { saveImageGenerationAsProject } from "@/lib/projects-from-generation";
 import { sanitizeReferenceImageForStorage, sanitizeGeneratedOutputForStorage } from "@/lib/image-utils";
 import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
 
@@ -73,6 +74,11 @@ export async function POST(req: Request) {
     });
 
     await invalidateUserCache(userId);
+    await saveImageGenerationAsProject({
+      userId,
+      type: "photo",
+      prompt,
+    });
 
     return NextResponse.json({ output: imageUrl });
   } catch (error) {

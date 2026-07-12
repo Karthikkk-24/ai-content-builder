@@ -8,6 +8,7 @@ import { buildTweetSystemPrompt, appendRemarks } from "@/lib/ai/prompts/prompt-u
 import { db } from "@/lib/db";
 import { generations } from "@/lib/db/schema";
 import { ensureUser } from "@/lib/db/users";
+import { saveTextGenerationAsProject } from "@/lib/projects-from-generation";
 import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
 
 const schema = z.object({
@@ -67,6 +68,12 @@ Include relevant hashtags. Return only the caption.`;
     });
 
     await invalidateUserCache(userId);
+    await saveTextGenerationAsProject({
+      userId,
+      type: generationType,
+      prompt,
+      output: text,
+    });
 
     return NextResponse.json({ output: text });
   } catch (error) {

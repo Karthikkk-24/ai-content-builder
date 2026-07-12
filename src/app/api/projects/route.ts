@@ -1,11 +1,12 @@
 import { auth } from "@clerk/nextjs/server";
-import { eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { invalidateUserCache } from "@/lib/cache";
 import { db } from "@/lib/db";
 import { contentProjects } from "@/lib/db/schema";
 import { ensureUser } from "@/lib/db/users";
+import { syncGenerationsToProjects } from "@/lib/projects-from-generation";
 
 export async function GET() {
   try {
@@ -16,14 +17,28 @@ export async function GET() {
 
     await ensureUser(userId);
 
-    const projects = await db
+    let projects = await db
       .select()
       .from(contentProjects)
-      .where(eq(contentProjects.userId, userId));
+      .where(eq(contentProjects.userId, userId))
+      .orderBy(desc(contentProjects.updatedAt));
+
+    if (projects.length === 0) {
+      await syncGenerationsToProjects(userId);
+      projects = await db
+        .select()
+        .from(contentProjects)
+        .where(eq(contentProjects.userId, userId))
+        .orderBy(desc(contentProjects.updatedAt));
+    }
 
     return NextResponse.json(projects);
-  } catch {
-    return NextResponse.json([]);
+  } catch (error) {
+    console.error("Failed to load projects:", error);
+    return NextResponse.json(
+      { error: "Failed to load projects" },
+      { status: 500 }
+    );
   }
 }
 
