@@ -1,10 +1,12 @@
 import { SignUp } from "@clerk/nextjs";
+import { RedirectIfSignedIn } from "@/components/auth/redirect-if-signed-in";
 import { GoogleSignUpButton } from "@/components/auth/google-sign-up-button";
 import { clerkConfig } from "@/lib/clerk-config";
 
 export default function SignUpPage() {
   return (
     <div className="flex min-h-screen items-center justify-center px-4">
+      <RedirectIfSignedIn to={clerkConfig.afterSignUpUrl} />
       <div className="w-full max-w-md space-y-6">
         <div className="text-center">
           <h1 className="text-xl font-semibold text-zinc-900">Create account</h1>

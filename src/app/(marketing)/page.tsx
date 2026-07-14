@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { auth } from "@clerk/nextjs/server";
+import { redirect } from "next/navigation";
 import {
   ArrowRight,
   FileText,
@@ -6,7 +8,11 @@ import {
   Upload,
   Wand2,
 } from "lucide-react";
+import { RedirectIfSignedIn } from "@/components/auth/redirect-if-signed-in";
 import { buttonVariants } from "@/components/ui/button-variants";
+import { clerkConfig } from "@/lib/clerk-config";
+
+export const dynamic = "force-dynamic";
 
 const features = [
   {
@@ -35,9 +41,16 @@ const features = [
   },
 ];
 
-export default function LandingPage() {
+export default async function LandingPage() {
+  const { userId } = await auth();
+  if (userId) {
+    redirect(clerkConfig.afterSignInUrl);
+  }
+
   return (
     <div className="min-h-screen bg-white">
+      <RedirectIfSignedIn to={clerkConfig.afterSignInUrl} />
+
       <header className="border-b border-zinc-200">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
           <div className="flex items-center gap-2">
