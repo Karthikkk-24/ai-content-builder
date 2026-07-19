@@ -1,27 +1,30 @@
 import { auth } from "@clerk/nextjs/server";
-import { NextResponse } from "next/server";
 import { z } from "zod";
 import { formatAiError } from "@/lib/ai/errors";
-import { invalidateUserCache } from "@/lib/cache";
-import { generateTextWithFallback } from "@/lib/ai/router";
-import { buildTweetSystemPrompt, appendRemarks } from "@/lib/ai/prompts/prompt-upgrade";
-import { db } from "@/lib/db";
-import { generations } from "@/lib/db/schema";
+import { generateAndPersistText } from "@/lib/ai/text-generation";
+import {
+  apiError,
+  apiSuccess,
+  getRequestId,
+  logAction,
+} from "@/lib/api/response";
 import { ensureUser } from "@/lib/db/users";
-import { saveTextGenerationAsProject } from "@/lib/projects-from-generation";
 import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
 
 const schema = z.object({
   prompt: z.string().min(1),
   context: z.record(z.string(), z.string()).optional(),
   remarks: z.string().optional(),
+  referenceImageUrl: z.string().nullable().optional(),
 });
 
 export async function POST(req: Request) {
+  const requestId = getRequestId(req);
+
   try {
     const { userId } = await auth();
     if (!userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return apiError("UNAUTHORIZED", "Unauthorized", 401, requestId);
     }
 
     if (!(await checkRateLimit(userId))) {
@@ -33,51 +36,29 @@ export async function POST(req: Request) {
     const body = await req.json();
     const parsed = schema.safeParse(body);
     if (!parsed.success) {
-      return NextResponse.json({ error: "Invalid input" }, { status: 400 });
+      return apiError("INVALID_INPUT", "Invalid input", 400, requestId);
     }
 
-    const { prompt, context, remarks } = parsed.data;
-    const generationType = context?.generationType || "tweet";
-
-    let systemPrompt = buildTweetSystemPrompt({
-      tone: context?.tone,
-      audience: context?.audience,
-      threadMode: context?.threadMode === "thread",
-    });
-
-    if (generationType === "blog") {
-      systemPrompt =
-        "You are a content strategist. Generate a detailed blog post outline with headings, subheadings, and key points for each section. Return only the outline in markdown format.";
-    } else if (generationType === "caption") {
-      systemPrompt = `You are a social media copywriter. Create an engaging caption for ${context?.platform || "social media"}.
-Tone: ${context?.tone || "professional"}
-Include relevant hashtags. Return only the caption.`;
-    }
-
-    const { text, provider } = await generateTextWithFallback({
-      system: systemPrompt,
-      prompt: appendRemarks(prompt, remarks),
-    });
-
-    await db.insert(generations).values({
+    const { prompt, context, remarks, referenceImageUrl } = parsed.data;
+    const { text, generationType } = await generateAndPersistText({
       userId,
-      type: generationType,
-      inputPrompt: prompt,
-      outputContent: text,
-      metadata: { context, provider, remarks: remarks ?? null },
-    });
-
-    await invalidateUserCache(userId);
-    await saveTextGenerationAsProject({
-      userId,
-      type: generationType,
       prompt,
-      output: text,
+      context,
+      remarks,
+      referenceImageUrl,
     });
 
-    return NextResponse.json({ output: text });
+    logAction({
+      requestId,
+      action: "ai.text_generate",
+      userId,
+      outcome: "success",
+      resource: generationType,
+    });
+
+    return apiSuccess({ output: text }, requestId);
   } catch (error) {
-    console.error("Tweet generation error:", error);
-    return NextResponse.json({ error: formatAiError(error) }, { status: 500 });
+    console.error("Text generation error:", error);
+    return apiError("AI_FAILED", formatAiError(error), 500, requestId);
   }
 }

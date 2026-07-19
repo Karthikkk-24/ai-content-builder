@@ -1,7 +1,5 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
-import { touchUserSession } from "@/lib/session";
-import { clerkConfig } from "@/lib/clerk-config";
 
 const isPublicRoute = createRouteMatcher([
   "/",
@@ -10,25 +8,27 @@ const isPublicRoute = createRouteMatcher([
   "/api/webhooks(.*)",
 ]);
 
-const isAuthPage = createRouteMatcher(["/sign-in(.*)", "/sign-up(.*)"]);
+const isAuthOrLanding = createRouteMatcher([
+  "/",
+  "/sign-in(.*)",
+  "/sign-up(.*)",
+]);
 
 export default clerkMiddleware(async (auth, req) => {
   const { userId } = await auth();
+  const dashboardUrl = new URL("/dashboard", req.url);
 
-  if (userId) {
-    touchUserSession(userId).catch(() => {});
-
-    if (req.nextUrl.pathname === "/" || isAuthPage(req)) {
-      return NextResponse.redirect(new URL(clerkConfig.afterSignInUrl, req.url));
-    }
+  if (userId && isAuthOrLanding(req)) {
+    return NextResponse.redirect(dashboardUrl);
   }
 
   if (!isPublicRoute(req)) {
-    const signInUrl = new URL("/sign-in", req.url);
     await auth.protect({
-      unauthenticatedUrl: signInUrl.toString(),
+      unauthenticatedUrl: new URL("/sign-in", req.url).toString(),
     });
   }
+
+  return NextResponse.next();
 });
 
 export const config = {

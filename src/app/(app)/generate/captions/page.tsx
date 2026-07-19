@@ -6,7 +6,7 @@ export default function CaptionsPage() {
       title="Social Captions"
       description="Create engaging captions for Instagram, LinkedIn, and more."
       generationType="caption"
-      apiEndpoint="/api/ai/generate/tweet"
+      apiEndpoint="/api/ai/generate/caption"
       outputType="text"
       showReferenceImage={true}
       contextFields={[

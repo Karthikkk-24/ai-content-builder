@@ -100,29 +100,41 @@ export function Sidebar({ collapsed, mobileOpen, onMobileClose }: SidebarProps) 
         })}
 
         <div className="pt-2">
-          <button
-            onClick={() => !collapsed && setAiOpen(!aiOpen)}
-            className={cn(
-              "flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-sm transition-colors",
-              pathname.startsWith("/generate")
-                ? "bg-zinc-100 text-zinc-900"
-                : "text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900"
-            )}
-          >
-            <Sparkles className="h-4 w-4 shrink-0" strokeWidth={1.5} />
-            {!collapsed && (
-              <>
-                <span className="flex-1 text-left">AI Generator</span>
-                <ChevronDown
-                  className={cn(
-                    "h-4 w-4 transition-transform duration-200",
-                    aiOpen && "rotate-180"
-                  )}
-                  strokeWidth={1.5}
-                />
-              </>
-            )}
-          </button>
+          {collapsed ? (
+            <Link
+              href="/generate"
+              onClick={onMobileClose}
+              className={cn(
+                "flex w-full items-center justify-center rounded-md px-3 py-2.5 text-sm transition-colors",
+                pathname.startsWith("/generate")
+                  ? "bg-zinc-100 text-zinc-900"
+                  : "text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900"
+              )}
+              aria-label="AI Generator"
+            >
+              <Sparkles className="h-4 w-4 shrink-0" strokeWidth={1.5} />
+            </Link>
+          ) : (
+            <button
+              onClick={() => setAiOpen(!aiOpen)}
+              className={cn(
+                "flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-sm transition-colors",
+                pathname.startsWith("/generate")
+                  ? "bg-zinc-100 text-zinc-900"
+                  : "text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900"
+              )}
+            >
+              <Sparkles className="h-4 w-4 shrink-0" strokeWidth={1.5} />
+              <span className="flex-1 text-left">AI Generator</span>
+              <ChevronDown
+                className={cn(
+                  "h-4 w-4 transition-transform duration-200",
+                  aiOpen && "rotate-180"
+                )}
+                strokeWidth={1.5}
+              />
+            </button>
+          )}
 
           <AnimatePresence initial={false}>
             {aiOpen && !collapsed && (
@@ -134,6 +146,19 @@ export function Sidebar({ collapsed, mobileOpen, onMobileClose }: SidebarProps) 
                 className="overflow-hidden"
               >
                 <div className="ml-4 space-y-0.5 border-l border-zinc-200 py-1 pl-3">
+                  <Link
+                    href="/generate"
+                    onClick={onMobileClose}
+                    className={cn(
+                      "flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm transition-colors",
+                      pathname === "/generate"
+                        ? "text-zinc-900 font-medium"
+                        : "text-zinc-500 hover:text-zinc-900"
+                    )}
+                  >
+                    <Sparkles className="h-3.5 w-3.5" strokeWidth={1.5} />
+                    <span>All tools</span>
+                  </Link>
                   {aiGeneratorItems.map((item) => {
                     const Icon = item.icon;
                     const active = isActive(item.href);

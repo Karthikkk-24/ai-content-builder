@@ -38,9 +38,18 @@ export async function checkRateLimit(userId: string): Promise<boolean> {
   }
 }
 
-export function rateLimitResponse() {
+export function rateLimitResponse(requestId?: string) {
   return Response.json(
-    { error: "Rate limit exceeded. Please wait a minute and try again." },
-    { status: 429 }
+    {
+      error: {
+        code: "RATE_LIMITED",
+        message: "Rate limit exceeded. Please wait a minute and try again.",
+        request_id: requestId ?? "req_ratelimit",
+      },
+    },
+    {
+      status: 429,
+      headers: requestId ? { "x-request-id": requestId } : undefined,
+    }
   );
 }

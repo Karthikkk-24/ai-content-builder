@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { getApiErrorMessage } from "@/lib/api/client-error";
 import { ReferenceImageUploader } from "@/components/upload/reference-image-uploader";
 
 export default function PromptUpgradePage() {
@@ -44,7 +45,7 @@ export default function PromptUpgradePage() {
       });
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed");
+      if (!res.ok) throw new Error(getApiErrorMessage(data, "Failed"));
       setEnhanced(data.enhanced);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed");

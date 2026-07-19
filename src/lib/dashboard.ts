@@ -1,7 +1,13 @@
-import { eq, count, desc, gte, and } from "drizzle-orm";
-import { cacheGet, cacheSet, CACHE_TTL, userCacheKeys } from "@/lib/cache";
+import {
+  cacheGet,
+  cacheSet,
+  CACHE_TTL,
+  generationsCacheKey,
+  userCacheKeys,
+} from "@/lib/cache";
 import { db } from "@/lib/db";
 import { contentProjects, generations } from "@/lib/db/schema";
+import { eq, count, desc, gte, and } from "drizzle-orm";
 
 export type DashboardStats = {
   totalGenerations: number;
@@ -66,7 +72,8 @@ export async function getDashboardStats(
 
     await cacheSet(keys.dashboard, stats, CACHE_TTL.DASHBOARD_STATS);
     return stats;
-  } catch {
+  } catch (error) {
+    console.error("Failed to load dashboard stats:", error);
     return {
       totalGenerations: 0,
       totalProjects: 0,
@@ -77,8 +84,7 @@ export async function getDashboardStats(
 }
 
 export async function getCachedGenerations(userId: string, limit = 20) {
-  const keys = userCacheKeys(userId);
-  const cacheKey = `${keys.generations}:${limit}`;
+  const cacheKey = generationsCacheKey(userId, limit);
   const cached = await cacheGet<Awaited<ReturnType<typeof fetchGenerations>>>(
     cacheKey
   );
@@ -97,7 +103,8 @@ async function fetchGenerations(userId: string, limit: number) {
       .where(eq(generations.userId, userId))
       .orderBy(desc(generations.createdAt))
       .limit(limit);
-  } catch {
+  } catch (error) {
+    console.error("Failed to load generations:", error);
     return [];
   }
 }

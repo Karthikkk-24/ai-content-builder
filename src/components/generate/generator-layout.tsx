@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { ReferenceImageUploader } from "@/components/upload/reference-image-uploader";
+import { getApiErrorMessage } from "@/lib/api/client-error";
 
 interface ContextField {
   key: string;
@@ -51,9 +52,16 @@ export function GeneratorLayout({
   const [loading, setLoading] = useState(false);
   const [upgrading, setUpgrading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  const isThreadMode = context.threadMode === "thread";
+  const promptOverLimit = Boolean(
+    charLimit && !isThreadMode && prompt.length > charLimit
+  );
+  const canGenerate = Boolean(prompt.trim()) && !promptOverLimit;
 
   const runGeneration = async (regenerate = false) => {
-    if (!prompt.trim()) return;
+    if (!canGenerate) return;
     setLoading(true);
     setError(null);
     if (!regenerate) {
@@ -80,7 +88,9 @@ export function GeneratorLayout({
       });
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Generation failed");
+      if (!res.ok) {
+        throw new Error(getApiErrorMessage(data, "Generation failed"));
+      }
       setOutput(data.output);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Generation failed");
@@ -106,7 +116,9 @@ export function GeneratorLayout({
       });
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to upgrade prompt");
+      if (!res.ok) {
+        throw new Error(getApiErrorMessage(data, "Failed to upgrade prompt"));
+      }
       setPrompt(data.enhanced);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to upgrade prompt");
@@ -115,8 +127,17 @@ export function GeneratorLayout({
     }
   };
 
-  const handleCopy = () => {
-    if (output) navigator.clipboard.writeText(output);
+  const handleCopy = async () => {
+    if (!output) return;
+
+    const textToCopy =
+      outputType === "image" && output.startsWith("data:")
+        ? "Generated image is ready. Use Download to save the file."
+        : output;
+
+    await navigator.clipboard.writeText(textToCopy);
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 1500);
   };
 
   const handleDownload = () => {
@@ -189,10 +210,11 @@ export function GeneratorLayout({
             {charLimit && (
               <p
                 className={`text-xs ${
-                  prompt.length > charLimit ? "text-zinc-900 font-medium" : "text-zinc-400"
+                  promptOverLimit ? "text-zinc-900 font-medium" : "text-zinc-400"
                 }`}
               >
                 {prompt.length} / {charLimit} characters
+                {promptOverLimit ? " — shorten for a single tweet, or switch to thread" : ""}
               </p>
             )}
             {showPromptUpgrade && (
@@ -231,20 +253,34 @@ export function GeneratorLayout({
         )}
       </div>
 
-      <Button onClick={() => runGeneration(false)} disabled={loading || !prompt.trim()}>
+      <Button onClick={() => runGeneration(false)} disabled={loading || !canGenerate}>
         {loading && !output ? (
           <Loader2 className="h-4 w-4 animate-spin" strokeWidth={1.5} />
         ) : (
           <Sparkles className="h-4 w-4" strokeWidth={1.5} />
         )}
-        Generate
+        {loading && !output ? "Generating..." : "Generate"}
       </Button>
+
+      {loading && !output && (
+        <div className="flex items-center gap-2 rounded-md border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-500">
+          <Loader2 className="h-4 w-4 animate-spin" strokeWidth={1.5} />
+          Generating your content...
+        </div>
+      )}
 
       {loading && output && (
         <div className="flex items-center gap-2 text-sm text-zinc-500">
           <Loader2 className="h-4 w-4 animate-spin" strokeWidth={1.5} />
-          Regenerating...
+          Regenerating with your latest prompt
+          {remarks.trim() ? " and remarks" : ""}...
         </div>
+      )}
+
+      {!loading && !output && !error && (
+        <p className="text-sm text-zinc-400">
+          Output will appear here after you generate.
+        </p>
       )}
 
       {error && (
@@ -260,7 +296,7 @@ export function GeneratorLayout({
             <div className="flex gap-2">
               <Button variant="outline" size="sm" onClick={handleCopy}>
                 <Copy className="h-3.5 w-3.5" strokeWidth={1.5} />
-                Copy
+                {copied ? "Copied" : "Copy"}
               </Button>
               {outputType === "image" && (
                 <Button variant="outline" size="sm" onClick={handleDownload}>
@@ -313,7 +349,7 @@ export function GeneratorLayout({
             <Button
               variant="outline"
               onClick={() => runGeneration(true)}
-              disabled={loading || !prompt.trim()}
+              disabled={loading || !canGenerate}
             >
               {loading ? (
                 <Loader2 className="h-4 w-4 animate-spin" strokeWidth={1.5} />

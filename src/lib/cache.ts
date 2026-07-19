@@ -8,6 +8,8 @@ export const CACHE_TTL = {
   SESSION: 30 * 24 * 60 * 60,
 } as const;
 
+export const GENERATIONS_CACHE_LIMITS = [20, 50] as const;
+
 export async function cacheGet<T>(key: string): Promise<T | null> {
   try {
     return await getRedis().get<T>(key);
@@ -30,6 +32,7 @@ export async function cacheSet(
 
 export async function cacheDel(...keys: string[]) {
   try {
+    if (keys.length === 0) return;
     await getRedis().del(...keys);
   } catch {
     // Cache invalidation is best-effort.
@@ -46,7 +49,15 @@ export function userCacheKeys(userId: string) {
   };
 }
 
+export function generationsCacheKey(userId: string, limit: number) {
+  return `${userCacheKeys(userId).generations}:${limit}`;
+}
+
 export async function invalidateUserCache(userId: string) {
   const keys = userCacheKeys(userId);
-  await cacheDel(keys.dashboard, keys.generations);
+  const generationKeys = GENERATIONS_CACHE_LIMITS.map((limit) =>
+    generationsCacheKey(userId, limit)
+  );
+
+  await cacheDel(keys.dashboard, keys.generations, ...generationKeys);
 }

@@ -65,6 +65,9 @@ function fitWithinBounds(
   };
 }
 
+const MAX_STORABLE_DATA_URL_LENGTH = 100_000;
+export const GENERATED_IMAGE_PLACEHOLDER = "[generated-image]";
+
 export function sanitizeReferenceImageForStorage(url: string | null | undefined) {
   if (!url || url.startsWith("data:")) {
     return null;
@@ -74,8 +77,11 @@ export function sanitizeReferenceImageForStorage(url: string | null | undefined)
 }
 
 export function sanitizeGeneratedOutputForStorage(content: string) {
-  if (content.startsWith("data:image/") && content.length > 100_000) {
-    return "[generated-image]";
+  if (
+    content.startsWith("data:image/") &&
+    content.length > MAX_STORABLE_DATA_URL_LENGTH
+  ) {
+    return GENERATED_IMAGE_PLACEHOLDER;
   }
 
   return content;

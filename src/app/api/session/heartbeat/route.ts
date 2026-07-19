@@ -1,18 +1,25 @@
 import { auth } from "@clerk/nextjs/server";
-import { NextResponse } from "next/server";
+import { apiError, apiSuccess, getRequestId } from "@/lib/api/response";
 import { touchUserSession } from "@/lib/session";
 
-export async function POST() {
+export async function POST(req: Request) {
+  const requestId = getRequestId(req);
+
   try {
     const { userId } = await auth();
     if (!userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return apiError("UNAUTHORIZED", "Unauthorized", 401, requestId);
     }
 
     await touchUserSession(userId);
 
-    return NextResponse.json({ ok: true });
+    return apiSuccess({ ok: true }, requestId);
   } catch {
-    return NextResponse.json({ error: "Session heartbeat failed" }, { status: 500 });
+    return apiError(
+      "INTERNAL_ERROR",
+      "Session heartbeat failed",
+      500,
+      requestId
+    );
   }
 }
