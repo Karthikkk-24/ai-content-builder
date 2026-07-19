@@ -2,10 +2,12 @@ import { auth } from "@clerk/nextjs/server";
 import Link from "next/link";
 import { getDashboardStats } from "@/lib/dashboard";
 import {
+  Captions,
   FileText,
   Image,
-  Sparkles,
   MessageSquare,
+  PenLine,
+  Sparkles,
   Wand2,
 } from "lucide-react";
 import {
@@ -21,6 +23,8 @@ const quickActions = [
   { href: "/generate/tweets", label: "Tweets", icon: MessageSquare },
   { href: "/generate/photos", label: "Photos", icon: Sparkles },
   { href: "/generate/prompt-upgrade", label: "Prompt Upgrade", icon: Wand2 },
+  { href: "/generate/blog", label: "Blog Outline", icon: PenLine },
+  { href: "/generate/captions", label: "Social Captions", icon: Captions },
   { href: "/builder", label: "Content Builder", icon: FileText },
 ];
 

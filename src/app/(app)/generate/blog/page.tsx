@@ -6,7 +6,7 @@ export default function BlogPage() {
       title="Blog Outline"
       description="Generate structured blog post outlines with AI."
       generationType="blog"
-      apiEndpoint="/api/ai/generate/tweet"
+      apiEndpoint="/api/ai/generate/blog"
       outputType="text"
       showReferenceImage={false}
       contextFields={[

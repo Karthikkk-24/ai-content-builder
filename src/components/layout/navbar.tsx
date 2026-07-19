@@ -1,8 +1,7 @@
 "use client";
 
 import { UserButton } from "@clerk/nextjs";
-import { Menu, Search } from "lucide-react";
-import { Input } from "@/components/ui/input";
+import { Menu } from "lucide-react";
 
 interface NavbarProps {
   collapsed: boolean;
@@ -32,13 +31,7 @@ export function Navbar({
         <Menu className="h-4 w-4" strokeWidth={1.5} />
       </button>
 
-      <div className="relative flex-1 max-w-md">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" strokeWidth={1.5} />
-        <Input
-          placeholder="Search..."
-          className="pl-9 bg-zinc-50 border-transparent focus-visible:border-zinc-200"
-        />
-      </div>
+      <div className="flex-1" />
 
       <div className="ml-auto flex items-center gap-3">
         <UserButton

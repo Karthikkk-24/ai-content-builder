@@ -12,11 +12,13 @@ import {
   Save,
   Copy,
   Download,
+  Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { getApiErrorMessage } from "@/lib/api/client-error";
 import type { ContentBlock } from "@/lib/db/schema";
 
 const blockTypes = [
@@ -64,6 +66,7 @@ export function ContentBuilder({
   const [blocks, setBlocks] = useState<ContentBlock[]>(initialBlocks);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
   const addBlock = (type: ContentBlock["type"]) => {
@@ -99,7 +102,7 @@ export function ContentBuilder({
         });
         if (!res.ok) {
           const data = await res.json();
-          throw new Error(data.error || "Failed to save project");
+          throw new Error(getApiErrorMessage(data, "Failed to save project"));
         }
       } else {
         const res = await fetch("/api/projects", {
@@ -108,7 +111,9 @@ export function ContentBuilder({
           body: JSON.stringify({ title, blocks }),
         });
         const data = await res.json();
-        if (!res.ok) throw new Error(data.error || "Failed to create project");
+        if (!res.ok) {
+          throw new Error(getApiErrorMessage(data, "Failed to create project"));
+        }
         if (data.id) router.push(`/builder/${data.id}`);
       }
     } catch (err) {
@@ -117,6 +122,29 @@ export function ContentBuilder({
       setSaving(false);
     }
   }, [projectId, title, blocks, router]);
+
+  const handleDelete = useCallback(async () => {
+    if (!projectId) return;
+    if (!window.confirm("Delete this project? This cannot be undone.")) return;
+
+    setDeleting(true);
+    setSaveError(null);
+
+    try {
+      const response = await fetch(`/api/projects/${projectId}`, {
+        method: "DELETE",
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(getApiErrorMessage(data, "Failed to delete project"));
+      }
+      router.push("/builder");
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : "Failed to delete");
+    } finally {
+      setDeleting(false);
+    }
+  }, [projectId, router]);
 
   const handleExport = () => {
     const md = blocksToMarkdown(blocks);
@@ -144,10 +172,25 @@ export function ContentBuilder({
             <Download className="h-3.5 w-3.5" strokeWidth={1.5} />
             Export
           </Button>
-          <Button variant="outline" size="sm" onClick={() => navigator.clipboard.writeText(blocksToMarkdown(blocks))}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigator.clipboard.writeText(blocksToMarkdown(blocks))}
+          >
             <Copy className="h-3.5 w-3.5" strokeWidth={1.5} />
             Copy MD
           </Button>
+          {projectId && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleDelete}
+              disabled={deleting}
+            >
+              <Trash2 className="h-3.5 w-3.5" strokeWidth={1.5} />
+              {deleting ? "Deleting..." : "Delete"}
+            </Button>
+          )}
           <Button size="sm" onClick={handleSave} disabled={saving}>
             <Save className="h-3.5 w-3.5" strokeWidth={1.5} />
             {saving ? "Saving..." : "Save"}
@@ -211,9 +254,23 @@ export function ContentBuilder({
                       <p className="text-sm text-zinc-600">{block.content}</p>
                     )}
                     {block.type === "image" && (
-                      <div className="flex items-center gap-2 text-sm text-zinc-500">
-                        <ImageIcon className="h-4 w-4" strokeWidth={1.5} />
-                        {block.url || "No image URL"}
+                      <div className="space-y-2">
+                        {block.url ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={block.url}
+                            alt={block.content || "Content image"}
+                            className="max-h-64 w-full rounded-md border border-zinc-200 object-cover"
+                          />
+                        ) : (
+                          <div className="flex items-center gap-2 text-sm text-zinc-500">
+                            <ImageIcon className="h-4 w-4" strokeWidth={1.5} />
+                            No image URL
+                          </div>
+                        )}
+                        {block.content && (
+                          <p className="text-xs text-zinc-400">{block.content}</p>
+                        )}
                       </div>
                     )}
                     {block.type === "divider" && <hr className="border-zinc-200" />}

@@ -1,20 +1,32 @@
 import { auth } from "@clerk/nextjs/server";
 import { and, eq } from "drizzle-orm";
-import { NextResponse } from "next/server";
 import { z } from "zod";
+import {
+  apiError,
+  apiSuccess,
+  getRequestId,
+  logAction,
+} from "@/lib/api/response";
 import { invalidateUserCache } from "@/lib/cache";
 import { db } from "@/lib/db";
 import { contentProjects } from "@/lib/db/schema";
 import { ensureUser } from "@/lib/db/users";
 
+const updateSchema = z.object({
+  title: z.string().optional(),
+  blocks: z.array(z.any()).optional(),
+});
+
 export async function GET(
-  _req: Request,
+  req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const requestId = getRequestId(req);
+
   try {
     const { userId } = await auth();
     if (!userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return apiError("UNAUTHORIZED", "Unauthorized", 401, requestId);
     }
 
     await ensureUser(userId);
@@ -28,31 +40,26 @@ export async function GET(
       );
 
     if (!project) {
-      return NextResponse.json({ error: "Not found" }, { status: 404 });
+      return apiError("NOT_FOUND", "Project not found", 404, requestId);
     }
 
-    return NextResponse.json(project);
+    return apiSuccess(project, requestId);
   } catch (error) {
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Internal error" },
-      { status: 500 }
-    );
+    console.error("Failed to load project:", error);
+    return apiError("INTERNAL_ERROR", "Failed to load project", 500, requestId);
   }
 }
-
-const updateSchema = z.object({
-  title: z.string().optional(),
-  blocks: z.array(z.any()).optional(),
-});
 
 export async function PATCH(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const requestId = getRequestId(req);
+
   try {
     const { userId } = await auth();
     if (!userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return apiError("UNAUTHORIZED", "Unauthorized", 401, requestId);
     }
 
     await ensureUser(userId);
@@ -61,7 +68,7 @@ export async function PATCH(
     const body = await req.json();
     const parsed = updateSchema.safeParse(body);
     if (!parsed.success) {
-      return NextResponse.json({ error: "Invalid input" }, { status: 400 });
+      return apiError("INVALID_INPUT", "Invalid input", 400, requestId);
     }
 
     const [project] = await db
@@ -76,28 +83,35 @@ export async function PATCH(
       .returning();
 
     if (!project) {
-      return NextResponse.json({ error: "Not found" }, { status: 404 });
+      return apiError("NOT_FOUND", "Project not found", 404, requestId);
     }
 
     await invalidateUserCache(userId);
+    logAction({
+      requestId,
+      action: "project.update",
+      userId,
+      outcome: "success",
+      resource: id,
+    });
 
-    return NextResponse.json(project);
+    return apiSuccess(project, requestId);
   } catch (error) {
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Internal error" },
-      { status: 500 }
-    );
+    console.error("Failed to update project:", error);
+    return apiError("INTERNAL_ERROR", "Failed to update project", 500, requestId);
   }
 }
 
 export async function DELETE(
-  _req: Request,
+  req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const requestId = getRequestId(req);
+
   try {
     const { userId } = await auth();
     if (!userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return apiError("UNAUTHORIZED", "Unauthorized", 401, requestId);
     }
 
     await ensureUser(userId);
@@ -109,11 +123,18 @@ export async function DELETE(
         and(eq(contentProjects.id, id), eq(contentProjects.userId, userId))
       );
 
-    return NextResponse.json({ success: true });
+    await invalidateUserCache(userId);
+    logAction({
+      requestId,
+      action: "project.delete",
+      userId,
+      outcome: "success",
+      resource: id,
+    });
+
+    return apiSuccess({ success: true }, requestId);
   } catch (error) {
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Internal error" },
-      { status: 500 }
-    );
+    console.error("Failed to delete project:", error);
+    return apiError("INTERNAL_ERROR", "Failed to delete project", 500, requestId);
   }
 }

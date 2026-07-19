@@ -1,19 +1,30 @@
 import { auth } from "@clerk/nextjs/server";
-import { NextResponse } from "next/server";
 import { z } from "zod";
 import { formatAiError } from "@/lib/ai/errors";
-import { invalidateUserCache } from "@/lib/cache";
 import {
   analyzeReferenceImage,
   generateImage,
   generateTextWithFallback,
 } from "@/lib/ai/router";
-import { buildPhotoSystemPrompt, appendRemarks } from "@/lib/ai/prompts/prompt-upgrade";
+import {
+  appendRemarks,
+  buildPhotoSystemPrompt,
+} from "@/lib/ai/prompts/prompt-upgrade";
+import {
+  apiError,
+  apiSuccess,
+  getRequestId,
+  logAction,
+} from "@/lib/api/response";
+import { invalidateUserCache } from "@/lib/cache";
 import { db } from "@/lib/db";
 import { generations } from "@/lib/db/schema";
 import { ensureUser } from "@/lib/db/users";
+import {
+  sanitizeGeneratedOutputForStorage,
+  sanitizeReferenceImageForStorage,
+} from "@/lib/image-utils";
 import { saveImageGenerationAsProject } from "@/lib/projects-from-generation";
-import { sanitizeReferenceImageForStorage, sanitizeGeneratedOutputForStorage } from "@/lib/image-utils";
 import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
 
 const schema = z.object({
@@ -24,14 +35,16 @@ const schema = z.object({
 });
 
 export async function POST(req: Request) {
+  const requestId = getRequestId(req);
+
   try {
     const { userId } = await auth();
     if (!userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return apiError("UNAUTHORIZED", "Unauthorized", 401, requestId);
     }
 
     if (!(await checkRateLimit(userId))) {
-      return rateLimitResponse();
+      return rateLimitResponse(requestId);
     }
 
     await ensureUser(userId);
@@ -39,7 +52,7 @@ export async function POST(req: Request) {
     const body = await req.json();
     const parsed = schema.safeParse(body);
     if (!parsed.success) {
-      return NextResponse.json({ error: "Invalid input" }, { status: 400 });
+      return apiError("INVALID_INPUT", "Invalid input", 400, requestId);
     }
 
     const { prompt, context, referenceImageUrl, remarks } = parsed.data;
@@ -78,11 +91,19 @@ export async function POST(req: Request) {
       userId,
       type: "photo",
       prompt,
+      imageUrl,
     });
 
-    return NextResponse.json({ output: imageUrl });
+    logAction({
+      requestId,
+      action: "ai.photo_generate",
+      userId,
+      outcome: "success",
+    });
+
+    return apiSuccess({ output: imageUrl }, requestId);
   } catch (error) {
     console.error("Photo generation error:", error);
-    return NextResponse.json({ error: formatAiError(error) }, { status: 500 });
+    return apiError("AI_FAILED", formatAiError(error), 500, requestId);
   }
 }

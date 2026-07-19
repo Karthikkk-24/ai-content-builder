@@ -239,11 +239,14 @@ export async function generateImage({
   url.searchParams.set("width", String(width));
   url.searchParams.set("height", String(height));
   url.searchParams.set("nologo", "true");
+  // Cache-bust so each generation is unique while keeping a stable public URL.
+  url.searchParams.set("seed", String(Date.now() % 1_000_000));
   if (apiKey) {
     url.searchParams.set("key", apiKey);
   }
 
-  const response = await fetch(url.toString());
+  const publicUrl = url.toString();
+  const response = await fetch(publicUrl);
 
   if (!response.ok) {
     throw new Error(`Image generation failed: ${response.statusText}`);
@@ -257,6 +260,12 @@ export async function generateImage({
       return { imageUrl: data.url, provider: "pollinations" };
     }
     throw new Error("Unexpected image response format");
+  }
+
+  // Prefer the public Pollinations URL for storage/history; only fall back to
+  // a data URL if the upstream response cannot be reused as a stable link.
+  if (contentType.startsWith("image/")) {
+    return { imageUrl: publicUrl, provider: "pollinations" };
   }
 
   const buffer = await response.arrayBuffer();
