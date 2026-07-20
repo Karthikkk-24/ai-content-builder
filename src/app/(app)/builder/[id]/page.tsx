@@ -5,8 +5,8 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { ContentBuilder } from "@/components/builder/content-builder";
 import { buttonVariants } from "@/components/ui/button-variants";
-import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { getApiErrorMessage } from "@/lib/api/client-error";
 import type { ContentBlock } from "@/lib/db/schema";
 import { cn } from "@/lib/utils";
 
@@ -30,7 +30,7 @@ export default function BuilderEditPage() {
         const data = await response.json();
 
         if (!response.ok) {
-          throw new Error(data.error || "Failed to load project");
+          throw new Error(getApiErrorMessage(data, "Failed to load project"));
         }
 
         if (!cancelled) {
@@ -65,14 +65,14 @@ export default function BuilderEditPage() {
 
   if (error) {
     return (
-      <Card>
-        <CardContent className="flex flex-col items-center gap-4 py-12 text-center">
-          <p className="text-sm text-zinc-600">{error}</p>
-          <Link href="/builder" className={cn(buttonVariants({ variant: "outline" }))}>
-            Back to projects
-          </Link>
-        </CardContent>
-      </Card>
+      <div className="space-y-4">
+        <div className="rounded-md border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-600">
+          {error}
+        </div>
+        <Link href="/builder" className={cn(buttonVariants({ variant: "outline" }))}>
+          Back to projects
+        </Link>
+      </div>
     );
   }
 

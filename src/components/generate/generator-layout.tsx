@@ -74,6 +74,7 @@ export function GeneratorLayout({
         prompt,
         context: { ...context, generationType },
         referenceImageUrl: referenceImage,
+        regenerate,
         ...extraPayload,
       };
 

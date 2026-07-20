@@ -32,6 +32,7 @@ const schema = z.object({
   context: z.record(z.string(), z.string()).optional(),
   referenceImageUrl: z.string().nullable().optional(),
   remarks: z.string().optional(),
+  regenerate: z.boolean().optional(),
 });
 
 export async function POST(req: Request) {
@@ -55,8 +56,10 @@ export async function POST(req: Request) {
       return apiError("INVALID_INPUT", "Invalid input", 400, requestId);
     }
 
-    const { prompt, context, referenceImageUrl, remarks } = parsed.data;
+    const { prompt, context, referenceImageUrl, remarks, regenerate } =
+      parsed.data;
     const promptWithRemarks = appendRemarks(prompt, remarks);
+    const isRegenerate = Boolean(regenerate);
 
     let imagePrompt = promptWithRemarks;
     if (referenceImageUrl) {
@@ -83,16 +86,25 @@ export async function POST(req: Request) {
       inputPrompt: prompt,
       outputContent: sanitizeGeneratedOutputForStorage(imageUrl),
       referenceImageUrl: sanitizeReferenceImageForStorage(referenceImageUrl),
-      metadata: { context, provider, remarks: remarks ?? null },
+      metadata: {
+        context,
+        provider,
+        remarks: remarks ?? null,
+        regenerate: isRegenerate,
+      },
     });
 
     await invalidateUserCache(userId);
-    await saveImageGenerationAsProject({
-      userId,
-      type: "photo",
-      prompt,
-      imageUrl,
-    });
+
+    let projectId: string | null = null;
+    if (!isRegenerate) {
+      projectId = await saveImageGenerationAsProject({
+        userId,
+        type: "photo",
+        prompt,
+        imageUrl,
+      });
+    }
 
     logAction({
       requestId,
@@ -101,7 +113,7 @@ export async function POST(req: Request) {
       outcome: "success",
     });
 
-    return apiSuccess({ output: imageUrl }, requestId);
+    return apiSuccess({ output: imageUrl, projectId }, requestId);
   } catch (error) {
     console.error("Photo generation error:", error);
     return apiError("AI_FAILED", formatAiError(error), 500, requestId);

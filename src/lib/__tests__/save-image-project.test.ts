@@ -6,7 +6,12 @@ const invalidateUserCache = vi.fn();
 vi.mock("@/lib/db", () => ({
   db: {
     insert: () => ({
-      values: insertValues,
+      values: (...args: unknown[]) => {
+        insertValues(...args);
+        return {
+          returning: async () => [{ id: "project_img_1" }],
+        };
+      },
     }),
   },
 }));
@@ -27,7 +32,6 @@ describe("saveImageGenerationAsProject", () => {
   beforeEach(() => {
     insertValues.mockReset();
     invalidateUserCache.mockReset();
-    insertValues.mockResolvedValue(undefined);
     invalidateUserCache.mockResolvedValue(undefined);
   });
 
@@ -36,13 +40,14 @@ describe("saveImageGenerationAsProject", () => {
       "@/lib/projects-from-generation"
     );
 
-    await saveImageGenerationAsProject({
+    const projectId = await saveImageGenerationAsProject({
       userId: "user_1",
       type: "poster",
       prompt: "Neon city poster",
       imageUrl: "https://image.pollinations.ai/prompt/neon",
     });
 
+    expect(projectId).toBe("project_img_1");
     expect(insertValues).toHaveBeenCalledTimes(1);
     const payload = insertValues.mock.calls[0][0];
 

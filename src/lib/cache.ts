@@ -8,7 +8,7 @@ export const CACHE_TTL = {
   SESSION: 30 * 24 * 60 * 60,
 } as const;
 
-export const GENERATIONS_CACHE_LIMITS = [20, 50] as const;
+export const GENERATIONS_CACHE_LIMITS = [20, 50, 100] as const;
 
 export async function cacheGet<T>(key: string): Promise<T | null> {
   try {

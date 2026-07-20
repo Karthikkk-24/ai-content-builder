@@ -28,7 +28,7 @@ export async function saveTextGenerationAsProject({
   type: string;
   prompt: string;
   output: string;
-}): Promise<void> {
+}): Promise<string> {
   const blocks: ContentBlock[] = [
     {
       id: randomUUID(),
@@ -43,13 +43,17 @@ export async function saveTextGenerationAsProject({
     },
   ];
 
-  await db.insert(contentProjects).values({
-    userId,
-    title: buildTitle(prompt, type),
-    blocks,
-  });
+  const [project] = await db
+    .insert(contentProjects)
+    .values({
+      userId,
+      title: buildTitle(prompt, type),
+      blocks,
+    })
+    .returning({ id: contentProjects.id });
 
   await invalidateUserCache(userId);
+  return project.id;
 }
 
 export async function saveImageGenerationAsProject({
@@ -62,7 +66,7 @@ export async function saveImageGenerationAsProject({
   type: string;
   prompt: string;
   imageUrl: string;
-}): Promise<void> {
+}): Promise<string> {
   const blocks: ContentBlock[] = [
     {
       id: randomUUID(),
@@ -83,13 +87,17 @@ export async function saveImageGenerationAsProject({
     },
   ];
 
-  await db.insert(contentProjects).values({
-    userId,
-    title: buildTitle(prompt, type),
-    blocks,
-  });
+  const [project] = await db
+    .insert(contentProjects)
+    .values({
+      userId,
+      title: buildTitle(prompt, type),
+      blocks,
+    })
+    .returning({ id: contentProjects.id });
 
   await invalidateUserCache(userId);
+  return project.id;
 }
 
 export async function syncGenerationsToProjects(userId: string): Promise<number> {

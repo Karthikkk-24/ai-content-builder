@@ -1,6 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import Link from "next/link";
 import { getDashboardStats } from "@/lib/dashboard";
+import { hrefForGenerationType } from "@/lib/generation-routes";
 import {
   Captions,
   FileText,
@@ -94,21 +95,23 @@ export default async function DashboardPage() {
         ) : (
           <div className="space-y-2">
             {stats.recent.map((gen) => (
-              <Card key={gen.id}>
-                <CardContent className="flex items-center justify-between p-4">
-                  <div>
-                    <p className="text-sm font-medium capitalize text-zinc-900">
-                      {gen.type.replace("_", " ")}
-                    </p>
-                    <p className="mt-0.5 truncate text-xs text-zinc-500 max-w-md">
-                      {gen.inputPrompt}
-                    </p>
-                  </div>
-                  <span className="text-xs text-zinc-400">
-                    {new Date(gen.createdAt).toLocaleDateString()}
-                  </span>
-                </CardContent>
-              </Card>
+              <Link key={gen.id} href={hrefForGenerationType(gen.type)}>
+                <Card className="transition-colors hover:bg-zinc-50">
+                  <CardContent className="flex items-center justify-between p-4">
+                    <div>
+                      <p className="text-sm font-medium capitalize text-zinc-900">
+                        {gen.type.replace("_", " ")}
+                      </p>
+                      <p className="mt-0.5 truncate text-xs text-zinc-500 max-w-md">
+                        {gen.inputPrompt}
+                      </p>
+                    </div>
+                    <span className="text-xs text-zinc-400">
+                      {new Date(gen.createdAt).toLocaleDateString()}
+                    </span>
+                  </CardContent>
+                </Card>
+              </Link>
             ))}
           </div>
         )}

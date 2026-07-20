@@ -40,13 +40,20 @@ export async function generateAndPersistText({
   context,
   remarks,
   referenceImageUrl,
+  regenerate = false,
 }: {
   userId: string;
   prompt: string;
   context?: TextGenerationContext;
   remarks?: string;
   referenceImageUrl?: string | null;
-}): Promise<{ text: string; provider: string; generationType: string }> {
+  regenerate?: boolean;
+}): Promise<{
+  text: string;
+  provider: string;
+  generationType: string;
+  projectId: string | null;
+}> {
   const generationType = context?.generationType || "tweet";
   let enrichedPrompt = appendRemarks(prompt, remarks);
 
@@ -72,16 +79,22 @@ export async function generateAndPersistText({
       provider,
       remarks: remarks ?? null,
       hasReferenceImage: Boolean(referenceImageUrl),
+      regenerate,
     },
   });
 
   await invalidateUserCache(userId);
-  await saveTextGenerationAsProject({
+
+  if (regenerate) {
+    return { text, provider, generationType, projectId: null };
+  }
+
+  const projectId = await saveTextGenerationAsProject({
     userId,
     type: generationType,
     prompt,
     output: text,
   });
 
-  return { text, provider, generationType };
+  return { text, provider, generationType, projectId };
 }

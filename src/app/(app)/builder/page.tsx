@@ -6,6 +6,7 @@ import { FileText, Loader2, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ContentBuilder } from "@/components/builder/content-builder";
+import { getApiErrorMessage } from "@/lib/api/client-error";
 
 interface Project {
   id: string;
@@ -23,7 +24,9 @@ export default function BuilderPage() {
     fetch("/api/projects")
       .then(async (r) => {
         const data = await r.json();
-        if (!r.ok) throw new Error(data.error || "Failed to load projects");
+        if (!r.ok) {
+          throw new Error(getApiErrorMessage(data, "Failed to load projects"));
+        }
         setProjects(data);
       })
       .catch((err) => {
@@ -70,23 +73,18 @@ export default function BuilderPage() {
           Loading projects...
         </div>
       ) : error ? (
-        <Card>
-          <CardContent className="py-8 text-center text-sm text-zinc-600">
-            {error}
-          </CardContent>
-        </Card>
+        <div className="rounded-md border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-600">
+          {error}
+        </div>
       ) : projects.length === 0 ? (
-        <Card>
-          <CardContent className="flex flex-col items-center py-12">
-            <FileText className="h-8 w-8 text-zinc-300" strokeWidth={1.5} />
-            <p className="mt-4 text-sm text-zinc-500">
-              No projects yet. Generate content with AI tools or create a blank project.
-            </p>
-            <Button className="mt-4" onClick={() => setCreating(true)}>
-              Create your first project
-            </Button>
-          </CardContent>
-        </Card>
+        <div className="space-y-4">
+          <p className="text-sm text-zinc-400">
+            No projects yet. Generate content with AI tools or create a blank project.
+          </p>
+          <Button onClick={() => setCreating(true)}>
+            Create your first project
+          </Button>
+        </div>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {projects.map((project) => (

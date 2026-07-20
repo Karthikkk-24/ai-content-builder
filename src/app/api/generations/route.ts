@@ -24,6 +24,6 @@ export async function GET(req: Request) {
     return apiSuccess(items, requestId);
   } catch (error) {
     console.error("Failed to load generations:", error);
-    return apiSuccess([], requestId);
+    return apiError("INTERNAL_ERROR", "Failed to load generations", 500, requestId);
   }
 }

@@ -1,4 +1,5 @@
 import { auth } from "@clerk/nextjs/server";
+import Link from "next/link";
 import {
   Card,
   CardContent,
@@ -7,6 +8,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { getCachedGenerations } from "@/lib/dashboard";
+import { hrefForGenerationType } from "@/lib/generation-routes";
 import { resolveUserProfile } from "@/lib/session";
 
 export default async function ProfilePage() {
@@ -53,29 +55,27 @@ export default async function ProfilePage() {
           Generation History
         </h2>
         {userGenerations.length === 0 ? (
-          <Card>
-            <CardContent className="py-8 text-center text-sm text-zinc-500">
-              No generations yet.
-            </CardContent>
-          </Card>
+          <p className="text-sm text-zinc-400">No generations yet.</p>
         ) : (
           <div className="space-y-2">
             {userGenerations.map((gen) => (
-              <Card key={gen.id}>
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium capitalize text-zinc-900">
-                      {gen.type.replace("_", " ")}
-                    </span>
-                    <span className="text-xs text-zinc-400">
-                      {new Date(gen.createdAt).toLocaleString()}
-                    </span>
-                  </div>
-                  <p className="mt-1 truncate text-sm text-zinc-500">
-                    {gen.inputPrompt}
-                  </p>
-                </CardContent>
-              </Card>
+              <Link key={gen.id} href={hrefForGenerationType(gen.type)}>
+                <Card className="transition-colors hover:bg-zinc-50">
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium capitalize text-zinc-900">
+                        {gen.type.replace("_", " ")}
+                      </span>
+                      <span className="text-xs text-zinc-400">
+                        {new Date(gen.createdAt).toLocaleString()}
+                      </span>
+                    </div>
+                    <p className="mt-1 truncate text-sm text-zinc-500">
+                      {gen.inputPrompt}
+                    </p>
+                  </CardContent>
+                </Card>
+              </Link>
             ))}
           </div>
         )}

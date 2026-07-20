@@ -94,7 +94,7 @@ describe("cache keys", () => {
   });
 
   it("tracks known generation cache limits", () => {
-    expect([...GENERATIONS_CACHE_LIMITS]).toEqual([20, 50]);
+    expect([...GENERATIONS_CACHE_LIMITS]).toEqual([20, 50, 100]);
     expect(userCacheKeys("abc").generations).toBe("user:generations:abc");
   });
 });

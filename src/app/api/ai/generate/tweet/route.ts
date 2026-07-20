@@ -16,6 +16,7 @@ const schema = z.object({
   context: z.record(z.string(), z.string()).optional(),
   remarks: z.string().optional(),
   referenceImageUrl: z.string().nullable().optional(),
+  regenerate: z.boolean().optional(),
 });
 
 export async function POST(req: Request) {
@@ -39,13 +40,15 @@ export async function POST(req: Request) {
       return apiError("INVALID_INPUT", "Invalid input", 400, requestId);
     }
 
-    const { prompt, context, remarks, referenceImageUrl } = parsed.data;
-    const { text, generationType } = await generateAndPersistText({
+    const { prompt, context, remarks, referenceImageUrl, regenerate } =
+      parsed.data;
+    const { text, generationType, projectId } = await generateAndPersistText({
       userId,
       prompt,
       context,
       remarks,
       referenceImageUrl,
+      regenerate: Boolean(regenerate),
     });
 
     logAction({
@@ -56,7 +59,7 @@ export async function POST(req: Request) {
       resource: generationType,
     });
 
-    return apiSuccess({ output: text }, requestId);
+    return apiSuccess({ output: text, projectId }, requestId);
   } catch (error) {
     console.error("Text generation error:", error);
     return apiError("AI_FAILED", formatAiError(error), 500, requestId);
