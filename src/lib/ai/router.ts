@@ -1,6 +1,7 @@
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { createGroq } from "@ai-sdk/groq";
 import { generateText } from "ai";
+import { sanitizeUserInput } from "@/lib/ai/sanitize";
 
 export type TextProvider = "gemini" | "groq";
 
@@ -17,6 +18,31 @@ const GEMINI_MAX_ATTEMPTS = GEMINI_RETRY_DELAYS_MS.length + 1;
 const google = createGoogleGenerativeAI({
   apiKey: process.env.GOOGLE_GENERATIVE_AI_API_KEY,
 });
+
+const GEMINI_PROVIDER_SAFETY_SETTINGS = {
+  safetySettings: [
+    {
+      category: "HARM_CATEGORY_HARASSMENT" as const,
+      threshold: "BLOCK_MEDIUM_AND_ABOVE" as const,
+    },
+    {
+      category: "HARM_CATEGORY_HATE_SPEECH" as const,
+      threshold: "BLOCK_MEDIUM_AND_ABOVE" as const,
+    },
+    {
+      category: "HARM_CATEGORY_SEXUALLY_EXPLICIT" as const,
+      threshold: "BLOCK_MEDIUM_AND_ABOVE" as const,
+    },
+    {
+      category: "HARM_CATEGORY_DANGEROUS_CONTENT" as const,
+      threshold: "BLOCK_MEDIUM_AND_ABOVE" as const,
+    },
+    {
+      category: "HARM_CATEGORY_CIVIC_INTEGRITY" as const,
+      threshold: "BLOCK_MEDIUM_AND_ABOVE" as const,
+    },
+  ],
+};
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -64,6 +90,9 @@ async function generateWithGemini({
         model: google(modelName),
         system,
         prompt,
+        providerOptions: {
+          google: GEMINI_PROVIDER_SAFETY_SETTINGS,
+        },
       });
 
       return { text: result.text, provider: "gemini" as const, model: modelName };
@@ -169,7 +198,7 @@ export async function analyzeReferenceImage(imageUrl: string): Promise<string> {
       contentType = match[1];
       base64 = match[2];
     } else {
-      const response = await fetch(imageUrl);
+      const response = await fetch(imageUrl, { redirect: "error" });
       if (!response.ok) return "";
       const buffer = await response.arrayBuffer();
       base64 = Buffer.from(buffer).toString("base64");
@@ -197,9 +226,12 @@ export async function analyzeReferenceImage(imageUrl: string): Promise<string> {
                   ],
                 },
               ],
+              providerOptions: {
+                google: GEMINI_PROVIDER_SAFETY_SETTINGS,
+              },
             });
 
-            return result.text;
+            return sanitizeUserInput(result.text, { maxChars: 1_000 });
           } catch (error) {
             if (
               !isRetryableGeminiError(error) ||
