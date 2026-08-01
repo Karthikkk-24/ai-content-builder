@@ -3,8 +3,8 @@
 import { useCallback, useRef, useState } from "react";
 import Image from "next/image";
 import { ImagePlus, Loader2, X } from "lucide-react";
+import { uploadFiles } from "@/lib/uploadthing";
 import { cn } from "@/lib/utils";
-import { compressImageFile } from "@/lib/image-utils";
 
 const MAX_FILE_SIZE = 4 * 1024 * 1024;
 const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
@@ -13,10 +13,6 @@ interface ReferenceImageUploaderProps {
   value?: string | null;
   onChange: (url: string | null) => void;
   className?: string;
-}
-
-function readFileAsDataUrl(file: File): Promise<string> {
-  return compressImageFile(file);
 }
 
 export function ReferenceImageUploader({
@@ -45,10 +41,22 @@ export function ReferenceImageUploader({
 
       setUploading(true);
       try {
-        const dataUrl = await readFileAsDataUrl(file);
-        onChange(dataUrl);
+        const result = await uploadFiles("referenceImage", {
+          files: [file],
+        });
+        const uploaded = result?.[0];
+        const url =
+          uploaded?.serverData?.url ??
+          uploaded?.ufsUrl ??
+          null;
+
+        if (!url) {
+          throw new Error("Upload returned no URL");
+        }
+
+        onChange(url);
       } catch {
-        setError("Failed to process image. Please try again.");
+        setError("Failed to upload image. Please try again.");
       } finally {
         setUploading(false);
       }
@@ -78,7 +86,7 @@ export function ReferenceImageUploader({
             alt="Reference"
             fill
             className="object-cover"
-            unoptimized
+            unoptimized={value.startsWith("data:")}
           />
         </div>
         <button
@@ -121,7 +129,7 @@ export function ReferenceImageUploader({
           <ImagePlus className="h-8 w-8 text-zinc-300" strokeWidth={1.5} />
         )}
         <p className="mt-3 text-sm text-zinc-600">
-          {uploading ? "Processing image..." : "Drop a reference image or click to browse"}
+          {uploading ? "Uploading image..." : "Drop a reference image or click to browse"}
         </p>
         <p className="mt-1 text-xs text-zinc-400">PNG, JPG, WebP up to 4MB</p>
       </div>

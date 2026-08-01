@@ -20,7 +20,7 @@ A full-stack Next.js application for building content and generating AI-powered 
 - Clerk (auth) + Neon Postgres (database) + Drizzle ORM
 - Vercel AI SDK (Gemini + Groq)
 - Pollinations Flux (free image generation)
-- Uploadthing (file uploads)
+- Uploadthing (reference image uploads → persistent URLs)
 - Upstash Redis (caching, rate limits, session metadata)
 - Framer Motion (sidebar animations)
 
@@ -99,7 +99,20 @@ In Clerk Dashboard → **Sessions**:
 
 The app includes a `SessionKeeper` that refreshes your Clerk token every 5 minutes so you stay signed in.
 
-### 7. Configure Redis (optional, recommended for production)
+### 7. Configure Uploadthing (required for reference image uploads)
+
+Reference images are uploaded to Uploadthing and stored as persistent HTTPS URLs
+so they can be reused across sessions and survive regenerations.
+
+1. Sign up at [uploadthing.com](https://uploadthing.com) and create an app.
+2. Copy your `UPLOADTHING_TOKEN` to `.env.local`.
+3. The `referenceImage` endpoint is defined at `src/app/api/uploadthing/core.ts`
+   (4MB max, 1 file per upload, PNG/JPG/WebP/GIF).
+
+Uploaded files are persisted in the `reference_images` table with the owner's
+userId, making audit/history accurate.
+
+### 8. Configure Redis (optional, recommended for production)
 
 Create a free Upstash Redis database and add to `.env.local`:
 
@@ -115,7 +128,7 @@ Redis powers:
 
 Without Redis, the app falls back to in-memory caching locally.
 
-### 8. Run the development server
+### 9. Run the development server
 
 ```bash
 npm run dev

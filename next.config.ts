@@ -3,7 +3,9 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   experimental: {
     serverActions: {
-      bodySizeLimit: "10mb",
+      // Reference images upload via Uploadthing, not server actions, so keep
+      // the server-action body limit tight to reduce POST body DoS surface.
+      bodySizeLimit: "1mb",
     },
   },
   images: {
