@@ -26,23 +26,16 @@ class MemoryRedis {
   async del(...keys: string[]) {
     keys.forEach((key) => memoryStore.delete(key));
   }
-
-  async incr(key: string): Promise<number> {
-    const current = (await this.get<number>(key)) ?? 0;
-    const next = current + 1;
-    const entry = memoryStore.get(key);
-    const ttlMs = entry ? entry.expiresAt - Date.now() : 60_000;
-    await this.set(key, next, { ex: Math.max(1, Math.ceil(ttlMs / 1000)) });
-    return next;
-  }
-
-  async expire(key: string, seconds: number) {
-    const entry = memoryStore.get(key);
-    if (!entry) return;
-    entry.expiresAt = Date.now() + seconds * 1000;
-  }
 }
 
+/**
+ * Returns the Upstash Redis client when UPSTASH_REDIS_REST_URL/TOKEN are set,
+ * otherwise returns an in-memory stand-in for local development.
+ *
+ * NOTE: The fallback only implements the SUBSET of the Redis API used by
+ * cache.ts (get/set/del). Callers like rate-limit.ts MUST short-circuit via
+ * `isRedisConfigured()` before attempting Redis-only commands (eval, zadd...).
+ */
 function createRedisClient() {
   const url = process.env.UPSTASH_REDIS_REST_URL;
   const token = process.env.UPSTASH_REDIS_REST_TOKEN;
