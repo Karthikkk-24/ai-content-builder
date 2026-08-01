@@ -41,8 +41,9 @@ export async function POST(req: Request) {
       return apiError("UNAUTHORIZED", "Unauthorized", 401, requestId);
     }
 
-    if (!(await checkRateLimit(userId))) {
-      return rateLimitResponse(requestId);
+    const rateLimit = await checkRateLimit(userId, "prompt-upgrade");
+    if (!rateLimit.allowed) {
+      return rateLimitResponse(rateLimit.retryAfterSeconds, requestId);
     }
 
     await ensureUser(userId);

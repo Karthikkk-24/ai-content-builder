@@ -123,10 +123,23 @@ UPSTASH_REDIS_REST_TOKEN=...
 
 Redis powers:
 - Dashboard & profile caching (faster page loads)
-- Distributed rate limiting across server instances
+- Distributed rate limiting across server instances (critical in production)
 - Session activity tracking
 
-Without Redis, the app falls back to in-memory caching locally.
+Rate limits are **per-endpoint** and enforced atomically with a sorted-set Lua
+script (no race conditions, no cross-endpoint throttling). Image routes are
+capped more aggressively than text routes because they hit upstream providers
+(Pollinations) that are the most expensive to abuse.
+
+| Endpoint | Limit |
+|----------|-------|
+| `generate/tweet`, `generate/caption` | 20 / min |
+| `generate/blog`, `prompt-upgrade` | 10 / min |
+| `generate/photo`, `generate/poster` | 5 / min |
+
+Without Redis, the app falls back to in-memory limiting in development, and
+**fails closed** (denies requests) in production so a misconfigured Redis
+never silently disables limits in prod.
 
 ### 9. Run the development server
 
