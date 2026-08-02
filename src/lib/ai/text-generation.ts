@@ -13,6 +13,21 @@ import { saveTextGenerationAsProject } from "@/lib/projects-from-generation";
 
 export type TextGenerationContext = Record<string, string>;
 
+const TWEET_CHAR_LIMIT = 280;
+const TWEET_SUFFIX = "…";
+
+function truncateToTweetLimit(text: string): string {
+  if (text.length <= TWEET_CHAR_LIMIT) {
+    return text;
+  }
+
+  const trimmed = text.slice(0, TWEET_CHAR_LIMIT - TWEET_SUFFIX.length);
+  const lastSpace = trimmed.lastIndexOf(" ");
+  const safeLength = lastSpace > 200 ? lastSpace : TWEET_CHAR_LIMIT - TWEET_SUFFIX.length;
+
+  return trimmed.slice(0, safeLength) + TWEET_SUFFIX;
+}
+
 function buildSystemPrompt(
   generationType: string,
   context?: TextGenerationContext
@@ -71,16 +86,23 @@ export async function generateAndPersistText({
     prompt: enrichedPrompt,
   });
 
+  let processedText = text;
+  if (generationType === "tweet") {
+    processedText = truncateToTweetLimit(processedText);
+  }
+
   await db.insert(generations).values({
     userId,
     type: generationType,
     inputPrompt: sanitizedPrompt,
-    outputContent: text,
+    outputContent: processedText,
     metadata: {
       context: sanitizedContext,
       provider,
       remarks: remarks ?? null,
       hasReferenceImage: Boolean(referenceImageUrl),
+      originalLength: text.length,
+      truncatedLength: processedText.length,
     },
   });
 
@@ -89,8 +111,10 @@ export async function generateAndPersistText({
     userId,
     type: generationType,
     prompt: sanitizedPrompt,
-    output: text,
+    output: processedText,
   });
 
-  return { text, provider, generationType };
+  return { text: processedText, provider, generationType };
 }
+
+export { truncateToTweetLimit, TWEET_CHAR_LIMIT };
