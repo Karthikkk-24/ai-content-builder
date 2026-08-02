@@ -1,5 +1,5 @@
 import { randomUUID } from "crypto";
-import { desc, eq } from "drizzle-orm";
+import { desc, eq, and, isNull } from "drizzle-orm";
 import { invalidateUserCache } from "@/lib/cache";
 import { db } from "@/lib/db";
 import type { ContentBlock } from "@/lib/db/schema";
@@ -23,11 +23,13 @@ export async function saveTextGenerationAsProject({
   type,
   prompt,
   output,
+  generationId,
 }: {
   userId: string;
   type: string;
   prompt: string;
   output: string;
+  generationId?: string;
 }): Promise<void> {
   const blocks: ContentBlock[] = [
     {
@@ -47,6 +49,7 @@ export async function saveTextGenerationAsProject({
     userId,
     title: buildTitle(prompt, type),
     blocks,
+    ...(generationId ? { generationId } : {}),
   });
 
   await invalidateUserCache(userId);
@@ -57,11 +60,13 @@ export async function saveImageGenerationAsProject({
   type,
   prompt,
   imageUrl,
+  generationId,
 }: {
   userId: string;
   type: string;
   prompt: string;
   imageUrl: string;
+  generationId?: string;
 }): Promise<void> {
   const blocks: ContentBlock[] = [
     {
@@ -87,33 +92,37 @@ export async function saveImageGenerationAsProject({
     userId,
     title: buildTitle(prompt, type),
     blocks,
+    ...(generationId ? { generationId } : {}),
   });
 
   await invalidateUserCache(userId);
 }
 
 export async function syncGenerationsToProjects(userId: string): Promise<number> {
-  const existing = await db
-    .select({ id: contentProjects.id })
-    .from(contentProjects)
-    .where(eq(contentProjects.userId, userId))
-    .limit(1);
-
-  if (existing.length > 0) {
-    return 0;
-  }
-
-  const items = await db
-    .select()
+  const unlinked = await db
+    .select({
+      id: generations.id,
+      type: generations.type,
+      inputPrompt: generations.inputPrompt,
+      outputContent: generations.outputContent,
+      createdAt: generations.createdAt,
+      referenceImageUrl: generations.referenceImageUrl,
+    })
     .from(generations)
-    .where(eq(generations.userId, userId))
+    .leftJoin(contentProjects, eq(contentProjects.generationId, generations.id))
+    .where(
+      and(
+        eq(generations.userId, userId),
+        isNull(contentProjects.id)
+      )
+    )
     .orderBy(desc(generations.createdAt));
 
-  if (items.length === 0) {
+  if (unlinked.length === 0) {
     return 0;
   }
 
-  for (const item of items) {
+  for (const item of unlinked) {
     if (item.type === "poster" || item.type === "photo") {
       const imageUrl =
         item.outputContent.startsWith("http") ||
@@ -127,6 +136,7 @@ export async function syncGenerationsToProjects(userId: string): Promise<number>
           type: item.type,
           prompt: item.inputPrompt,
           output: item.inputPrompt,
+          generationId: item.id,
         });
         continue;
       }
@@ -136,6 +146,7 @@ export async function syncGenerationsToProjects(userId: string): Promise<number>
         type: item.type,
         prompt: item.inputPrompt,
         imageUrl,
+        generationId: item.id,
       });
     } else {
       await saveTextGenerationAsProject({
@@ -143,11 +154,12 @@ export async function syncGenerationsToProjects(userId: string): Promise<number>
         type: item.type,
         prompt: item.inputPrompt,
         output: item.outputContent,
+        generationId: item.id,
       });
     }
   }
 
-  return items.length;
+  return unlinked.length;
 }
 
 export { buildTitle };
