@@ -38,7 +38,7 @@ export function formatAiError(error: unknown): string {
   }
 
   if (/all text providers failed/i.test(message)) {
-    return "All AI providers failed. Check your API keys in .env.local and try again.";
+    return "All AI providers failed after retries. Check your API keys in .env.local and try again.";
   }
 
   return message;
