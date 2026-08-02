@@ -22,6 +22,7 @@ import { useState } from "react";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/generations", label: "Generation History", icon: Sparkles },
   { href: "/builder", label: "Content Builder", icon: FileText },
 ];
 

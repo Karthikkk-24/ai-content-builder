@@ -59,6 +59,11 @@ function isRetryableGeminiError(error: unknown) {
   );
 }
 
+function isRetryableGroqError(error: unknown) {
+  const message = getErrorMessage(error);
+  return /rate limit|timeout|network|temporarily/i.test(message);
+}
+
 function getGroqClient() {
   if (!process.env.GROQ_API_KEY) {
     return null;
@@ -110,6 +115,9 @@ async function generateWithGemini({
   throw lastError instanceof Error ? lastError : new Error(String(lastError));
 }
 
+const GROQ_RETRY_DELAYS_MS = [500, 1_500] as const;
+const GROQ_MAX_ATTEMPTS = GROQ_RETRY_DELAYS_MS.length + 1;
+
 async function generateWithGroq({
   system,
   prompt,
@@ -122,17 +130,31 @@ async function generateWithGroq({
     throw new Error("Groq API key is missing");
   }
 
-  const result = await generateText({
-    model: groq("llama-3.3-70b-versatile"),
-    system,
-    prompt,
-  });
+  let lastError: unknown;
 
-  return {
-    text: result.text,
-    provider: "groq" as const,
-    model: "llama-3.3-70b-versatile",
-  };
+  for (let attempt = 0; attempt < GROQ_MAX_ATTEMPTS; attempt++) {
+    try {
+      const result = await generateText({
+        model: groq("llama-3.3-70b-versatile"),
+        system,
+        prompt,
+      });
+
+      return {
+        text: result.text,
+        provider: "groq" as const,
+        model: "llama-3.3-70b-versatile",
+      };
+    } catch (error) {
+      lastError = error;
+      if (!isRetryableGroqError(error) || attempt === GROQ_MAX_ATTEMPTS - 1) {
+        break;
+      }
+      await sleep(GROQ_RETRY_DELAYS_MS[attempt]);
+    }
+  }
+
+  throw lastError instanceof Error ? lastError : new Error(String(lastError));
 }
 
 export async function generateTextWithFallback({
