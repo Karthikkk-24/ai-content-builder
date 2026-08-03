@@ -1,0 +1,2 @@
+ALTER TABLE "content_projects" ADD COLUMN "generation_id" uuid;--> statement-breakpoint
+ALTER TABLE "content_projects" ADD CONSTRAINT "content_projects_generation_id_generations_id_fk" FOREIGN KEY ("generation_id") REFERENCES "public"."generations"("id") ON DELETE set null ON UPDATE no action;

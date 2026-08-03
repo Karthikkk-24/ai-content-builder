@@ -21,6 +21,11 @@ export const contentProjects = pgTable("content_projects", {
     .references(() => users.id, { onDelete: "cascade" }),
   title: text("title").notNull().default("Untitled"),
   blocks: jsonb("blocks").notNull().default([]),
+  // Optional link to the AI generation that produced this project.
+  // set-null so deleting a generation doesn't kill user-edited projects.
+  generationId: uuid("generation_id").references(() => generations.id, {
+    onDelete: "set null",
+  }),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
