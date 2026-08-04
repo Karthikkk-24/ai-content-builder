@@ -1,9 +1,10 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
-import { ImagePlus, Loader2, X } from "lucide-react";
+import { History, ImagePlus, Loader2, X } from "lucide-react";
 import { uploadFiles } from "@/lib/uploadthing";
+import { listUserReferenceImages } from "@/lib/actions/reference-images";
 import { cn } from "@/lib/utils";
 
 const MAX_FILE_SIZE = 4 * 1024 * 1024;
@@ -12,6 +13,7 @@ const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
 interface ReferenceImageUploaderProps {
   value?: string | null;
   onChange: (url: string | null) => void;
+  checkExisting?: boolean;
   className?: string;
 }
 
@@ -24,6 +26,21 @@ export function ReferenceImageUploader({
   const [uploading, setUploading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [previousImages, setPreviousImages] = useState<
+    Array<{ id: string; url: string; fileName: string }>
+  >([]);
+
+  useEffect(() => {
+    async function loadPrevious() {
+      try {
+        const rows = await listUserReferenceImages(6);
+        setPreviousImages(rows);
+      } catch {
+        // Silent fail — picker just won't show.
+      }
+    }
+    loadPrevious();
+  }, []);
 
   const processFile = useCallback(
     async (file: File) => {
@@ -143,6 +160,34 @@ export function ReferenceImageUploader({
       />
 
       {error && <p className="text-xs text-zinc-600">{error}</p>}
+
+      {previousImages.length > 0 && (
+        <div className="mt-3">
+          <p className="mb-2 flex items-center gap-1 text-xs font-medium text-zinc-500">
+            <History className="h-3 w-3" strokeWidth={1.5} />
+            Or reuse a previous upload
+          </p>
+          <div className="grid grid-cols-3 gap-2">
+            {previousImages.map((img) => (
+              <button
+                key={img.id}
+                type="button"
+                onClick={() => onChange(img.url)}
+                title={img.fileName}
+                className="relative aspect-square overflow-hidden rounded-md border border-zinc-200 bg-zinc-50 hover:border-zinc-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900"
+              >
+                <Image
+                  src={img.url}
+                  alt={img.fileName}
+                  fill
+                  className="object-cover"
+                  sizes="(max-width: 768px) 33vw, 10vw"
+                />
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
