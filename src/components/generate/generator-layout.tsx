@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { MarkdownRenderer } from "@/components/markdown-renderer";
 import { ReferenceImageUploader } from "@/components/upload/reference-image-uploader";
 import { getApiErrorMessage } from "@/lib/api/client-error";
 
@@ -319,9 +320,7 @@ export function GeneratorLayout({
               </div>
             ) : (
               <div>
-                <pre className="whitespace-pre-wrap rounded-md bg-zinc-50 p-4 text-sm text-zinc-900">
-                  {output}
-                </pre>
+                <MarkdownRenderer content={output} />
                 {charLimit && output && (
                   <p className="mt-2 text-xs text-zinc-400">
                     Output length: {output.length} characters
