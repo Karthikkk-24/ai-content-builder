@@ -5,6 +5,7 @@ import {
   cacheSet,
   userCacheKeys,
 } from "@/lib/cache";
+import { getUserPreferences } from "@/lib/preferences";
 
 export type CachedUserProfile = {
   id: string;
@@ -43,6 +44,14 @@ export async function resolveUserProfile(): Promise<CachedUserProfile | null> {
   const clerkUser = await currentUser();
   if (!clerkUser) return null;
 
+  let customAvatarUrl: string | null = null;
+  try {
+    const prefs = await getUserPreferences(userId);
+    customAvatarUrl = prefs.customAvatarUrl;
+  } catch {
+    // Preferences lookup is best-effort for avatar display.
+  }
+
   const profile: CachedUserProfile = {
     id: userId,
     email:
@@ -53,7 +62,7 @@ export async function resolveUserProfile(): Promise<CachedUserProfile | null> {
       [clerkUser.firstName, clerkUser.lastName].filter(Boolean).join(" ") ||
       clerkUser.username ||
       null,
-    avatarUrl: clerkUser.imageUrl ?? null,
+    avatarUrl: customAvatarUrl ?? clerkUser.imageUrl ?? null,
   };
 
   await cacheUserProfile(userId, profile);

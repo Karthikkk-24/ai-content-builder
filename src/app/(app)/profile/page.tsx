@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { auth } from "@clerk/nextjs/server";
 import {
   Card,
@@ -7,26 +8,46 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { getCachedGenerations } from "@/lib/dashboard";
+import { getUserPreferences } from "@/lib/preferences";
 import { resolveUserProfile } from "@/lib/session";
+import { ensureUser } from "@/lib/db/users";
 
 export default async function ProfilePage() {
   const { userId } = await auth();
-  const [profile, userGenerations] = await Promise.all([
+  if (!userId) return null;
+
+  await ensureUser(userId);
+  const [profile, userGenerations, preferences] = await Promise.all([
     resolveUserProfile(),
-    userId ? getCachedGenerations(userId, 20) : Promise.resolve([]),
+    getCachedGenerations(userId, 20),
+    getUserPreferences(userId),
   ]);
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-semibold text-zinc-900">Profile</h1>
-        <p className="mt-1 text-sm text-zinc-500">Your account and generation history</p>
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold text-zinc-900">Profile</h1>
+          <p className="mt-1 text-sm text-zinc-500">
+            Your account and generation history
+          </p>
+        </div>
+        <Link
+          href="/settings"
+          className="inline-flex h-9 items-center rounded-md border border-zinc-200 px-3 text-sm text-zinc-700 hover:bg-zinc-50"
+        >
+          Edit settings
+        </Link>
       </div>
 
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Account</CardTitle>
-          <CardDescription>Managed via Clerk</CardDescription>
+          <CardDescription>
+            {preferences.customAvatarUrl
+              ? "Custom avatar from Settings"
+              : "Avatar from Clerk (upload a custom one in Settings)"}
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="flex items-center gap-4">
@@ -35,7 +56,7 @@ export default async function ProfilePage() {
               <img
                 src={profile.avatarUrl}
                 alt="Avatar"
-                className="h-16 w-16 rounded-full border border-zinc-200"
+                className="h-16 w-16 rounded-full border border-zinc-200 object-cover"
               />
             )}
             <div>
@@ -45,6 +66,20 @@ export default async function ProfilePage() {
               <p className="text-sm text-zinc-500">{profile?.email}</p>
             </div>
           </div>
+          <dl className="grid gap-2 text-sm text-zinc-600 sm:grid-cols-2">
+            <div>
+              <dt className="text-zinc-400">Default tone</dt>
+              <dd>{preferences.defaultTone || "Not set"}</dd>
+            </div>
+            <div>
+              <dt className="text-zinc-400">Preferred tool</dt>
+              <dd>{preferences.defaultGenerationType || "Not set"}</dd>
+            </div>
+            <div>
+              <dt className="text-zinc-400">Marketing emails</dt>
+              <dd>{preferences.marketingOptOut ? "Opted out" : "Allowed"}</dd>
+            </div>
+          </dl>
         </CardContent>
       </Card>
 

@@ -56,6 +56,17 @@ export const referenceImages = pgTable("reference_images", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+export const userPreferences = pgTable("user_preferences", {
+  userId: text("user_id")
+    .primaryKey()
+    .references(() => users.id, { onDelete: "cascade" }),
+  defaultTone: text("default_tone"),
+  defaultGenerationType: text("default_generation_type"),
+  marketingOptOut: boolean("marketing_opt_out").notNull().default(false),
+  customAvatarUrl: text("custom_avatar_url"),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
 export type ContentBlock = {
   id: string;
   type: "heading" | "paragraph" | "image" | "divider" | "cta";
