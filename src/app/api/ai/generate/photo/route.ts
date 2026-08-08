@@ -105,14 +105,17 @@ export async function POST(req: Request) {
     const clientSafeUrl = scrubProviderSecretsFromUrl(moderatedImage.url);
     const storedOutput = sanitizeGeneratedOutputForStorage(clientSafeUrl);
 
-    await db.insert(generations).values({
-      userId,
-      type: "photo",
-      inputPrompt: sanitizedPrompt,
-      outputContent: storedOutput,
-      referenceImageUrl: sanitizeReferenceImageForStorage(referenceImageUrl),
-      metadata: { context: sanitizedContext, provider, remarks: remarks ?? null },
-    });
+    const [generation] = await db
+      .insert(generations)
+      .values({
+        userId,
+        type: "photo",
+        inputPrompt: sanitizedPrompt,
+        outputContent: storedOutput,
+        referenceImageUrl: sanitizeReferenceImageForStorage(referenceImageUrl),
+        metadata: { context: sanitizedContext, provider, remarks: remarks ?? null },
+      })
+      .returning({ id: generations.id });
 
     await invalidateUserCache(userId);
     await saveImageGenerationAsProject({
@@ -120,6 +123,7 @@ export async function POST(req: Request) {
       type: "photo",
       prompt: sanitizedPrompt,
       imageUrl: clientSafeUrl,
+      generationId: generation.id,
     });
 
     logAction({
