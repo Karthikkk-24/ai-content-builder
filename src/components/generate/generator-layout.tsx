@@ -52,6 +52,8 @@ export function GeneratorLayout({
   const [referenceImage, setReferenceImage] = useState<string | null>(null);
   const [remarks, setRemarks] = useState("");
   const [output, setOutput] = useState<string | null>(null);
+  const [previousOutput, setPreviousOutput] = useState<string | null>(null);
+  const [styleFingerprint, setStyleFingerprint] = useState<unknown>(null);
   const [loading, setLoading] = useState(false);
   const [upgrading, setUpgrading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -107,7 +109,11 @@ export function GeneratorLayout({
     setError(null);
     if (!regenerate) {
       setOutput(null);
+      setPreviousOutput(null);
+      setStyleFingerprint(null);
       setRemarks("");
+    } else if (outputType === "image" && output) {
+      setPreviousOutput(output);
     }
 
     const payload: Record<string, unknown> = {
@@ -119,6 +125,13 @@ export function GeneratorLayout({
 
     if (regenerate && remarks.trim()) {
       payload.remarks = remarks.trim();
+    }
+
+    if (regenerate && outputType === "image") {
+      payload.previousOutputUrl = previousOutput || output;
+      if (styleFingerprint) {
+        payload.previousStyle = styleFingerprint;
+      }
     }
 
     try {
@@ -142,6 +155,9 @@ export function GeneratorLayout({
         throw new Error(getApiErrorMessage(data, "Generation failed"));
       }
       setOutput(data.output);
+      if (outputType === "image" && data.style) {
+        setStyleFingerprint(data.style);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Generation failed");
     } finally {
@@ -435,13 +451,60 @@ export function GeneratorLayout({
           <CardContent className="space-y-4">
             <div className={loading ? "pointer-events-none opacity-50" : ""}>
             {outputType === "image" ? (
-              <div className="relative aspect-square max-w-lg overflow-hidden rounded-lg border border-zinc-200">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={output}
-                  alt="Generated"
-                  className="h-full w-full object-cover"
-                />
+              <div className="space-y-3">
+                {previousOutput && previousOutput !== output ? (
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div>
+                      <p className="mb-2 text-xs font-medium uppercase tracking-wider text-zinc-400">
+                        Previous
+                      </p>
+                      <div className="relative aspect-square overflow-hidden rounded-lg border border-zinc-200">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={previousOutput}
+                          alt="Previous generation"
+                          className="h-full w-full object-cover"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <p className="mb-2 text-xs font-medium uppercase tracking-wider text-zinc-400">
+                        Current
+                      </p>
+                      <div className="relative aspect-square overflow-hidden rounded-lg border border-zinc-200">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={output}
+                          alt="Generated"
+                          className="h-full w-full object-cover"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="relative aspect-square max-w-lg overflow-hidden rounded-lg border border-zinc-200">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={output}
+                      alt="Generated"
+                      className="h-full w-full object-cover"
+                    />
+                  </div>
+                )}
+                {styleFingerprint &&
+                typeof styleFingerprint === "object" &&
+                styleFingerprint !== null &&
+                "moodWords" in styleFingerprint &&
+                Array.isArray((styleFingerprint as { moodWords?: unknown }).moodWords) &&
+                ((styleFingerprint as { moodWords: string[] }).moodWords).length >
+                  0 ? (
+                  <p className="text-xs text-zinc-500">
+                    Style continuity cues:{" "}
+                    {(styleFingerprint as { moodWords: string[] }).moodWords.join(
+                      ", "
+                    )}
+                  </p>
+                ) : null}
               </div>
             ) : (
               <div>
