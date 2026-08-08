@@ -100,21 +100,24 @@ export async function POST(req: Request) {
       );
     }
 
-    await db.insert(generations).values({
-      userId,
-      type: "prompt_upgrade",
-      inputPrompt: sanitizedPrompt,
-      outputContent: moderated.text,
-      referenceImageUrl: sanitizeReferenceImageForStorage(referenceImageUrl),
-      metadata: {
-        context: sanitizedContext,
-        remarks: remarks ?? null,
-        moderated: {
-          truncated: moderated.truncated,
-          strippedHtml: moderated.strippedHtml,
+    const [generation] = await db
+      .insert(generations)
+      .values({
+        userId,
+        type: "prompt_upgrade",
+        inputPrompt: sanitizedPrompt,
+        outputContent: moderated.text,
+        referenceImageUrl: sanitizeReferenceImageForStorage(referenceImageUrl),
+        metadata: {
+          context: sanitizedContext,
+          remarks: remarks ?? null,
+          moderated: {
+            truncated: moderated.truncated,
+            strippedHtml: moderated.strippedHtml,
+          },
         },
-      },
-    });
+      })
+      .returning({ id: generations.id });
 
     await invalidateUserCache(userId);
     await saveTextGenerationAsProject({
@@ -122,6 +125,7 @@ export async function POST(req: Request) {
       type: "prompt_upgrade",
       prompt: sanitizedPrompt,
       output: moderated.text,
+      generationId: generation.id,
     });
 
     logAction({

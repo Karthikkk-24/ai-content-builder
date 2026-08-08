@@ -98,24 +98,27 @@ export async function generateAndPersistText({
   }
   processedText = moderated.text;
 
-  await db.insert(generations).values({
-    userId,
-    type: generationType,
-    inputPrompt: sanitizedPrompt,
-    outputContent: processedText,
-    metadata: {
-      context: sanitizedContext,
-      provider,
-      remarks: remarks ?? null,
-      hasReferenceImage: Boolean(referenceImageUrl),
-      originalLength: text.length,
-      truncatedLength: processedText.length,
-      moderated: {
-        truncated: moderated.truncated,
-        strippedHtml: moderated.strippedHtml,
+  const [generation] = await db
+    .insert(generations)
+    .values({
+      userId,
+      type: generationType,
+      inputPrompt: sanitizedPrompt,
+      outputContent: processedText,
+      metadata: {
+        context: sanitizedContext,
+        provider,
+        remarks: remarks ?? null,
+        hasReferenceImage: Boolean(referenceImageUrl),
+        originalLength: text.length,
+        truncatedLength: processedText.length,
+        moderated: {
+          truncated: moderated.truncated,
+          strippedHtml: moderated.strippedHtml,
+        },
       },
-    },
-  });
+    })
+    .returning({ id: generations.id });
 
   await invalidateUserCache(userId);
   await saveTextGenerationAsProject({
@@ -123,6 +126,7 @@ export async function generateAndPersistText({
     type: generationType,
     prompt: sanitizedPrompt,
     output: processedText,
+    generationId: generation.id,
   });
 
   return { text: processedText, provider, generationType };

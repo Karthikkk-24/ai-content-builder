@@ -43,22 +43,16 @@ export async function GET(req: Request) {
       MAX_LIMIT
     );
 
-    let projects = await db
+    // Incremental sync of generations that were never linked to a project.
+    // Safe because sync only inserts rows with null generation_id join matches.
+    await syncGenerationsToProjects(userId);
+
+    const projects = await db
       .select()
       .from(contentProjects)
       .where(eq(contentProjects.userId, userId))
       .orderBy(desc(contentProjects.updatedAt))
       .limit(limit);
-
-    if (projects.length === 0) {
-      await syncGenerationsToProjects(userId);
-      projects = await db
-        .select()
-        .from(contentProjects)
-        .where(eq(contentProjects.userId, userId))
-        .orderBy(desc(contentProjects.updatedAt))
-        .limit(limit);
-    }
 
     return apiSuccess(projects, requestId);
   } catch (error) {
