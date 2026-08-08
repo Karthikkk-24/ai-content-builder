@@ -3,6 +3,10 @@ import { createGroq } from "@ai-sdk/groq";
 import { generateText } from "ai";
 import { sanitizeUserInput } from "@/lib/ai/sanitize";
 import { scrubProviderSecretsFromUrl } from "@/lib/image-utils";
+import {
+  fetchAllowlistedImage,
+  isAllowedDataImageUrl,
+} from "@/lib/safe-url";
 
 export type TextProvider = "gemini" | "groq";
 
@@ -216,16 +220,20 @@ export async function analyzeReferenceImage(imageUrl: string): Promise<string> {
     let contentType: string;
 
     if (imageUrl.startsWith("data:")) {
+      if (!isAllowedDataImageUrl(imageUrl)) return "";
       const match = imageUrl.match(/^data:([^;]+);base64,(.+)$/);
       if (!match) return "";
       contentType = match[1];
       base64 = match[2];
+      // Rough size guard (~4/3 of base64 length ≈ bytes)
+      if (Math.floor((base64.length * 3) / 4) > 5 * 1024 * 1024) {
+        return "";
+      }
     } else {
-      const response = await fetch(imageUrl, { redirect: "error" });
-      if (!response.ok) return "";
-      const buffer = await response.arrayBuffer();
-      base64 = Buffer.from(buffer).toString("base64");
-      contentType = response.headers.get("content-type") || "image/jpeg";
+      const fetched = await fetchAllowlistedImage(imageUrl);
+      if (!fetched) return "";
+      base64 = Buffer.from(fetched.buffer).toString("base64");
+      contentType = fetched.contentType;
     }
 
     for (const modelName of GEMINI_MODELS) {
