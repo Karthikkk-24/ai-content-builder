@@ -69,6 +69,28 @@ return {1, 0}
 `;
 
 const memoryWindows = new Map<string, number[]>();
+const MEMORY_WINDOW_CLEANUP_MS = 5 * 60 * 1000;
+let memoryWindowCleanupStarted = false;
+
+function ensureMemoryWindowCleanup() {
+  if (memoryWindowCleanupStarted || typeof setInterval === "undefined") return;
+  memoryWindowCleanupStarted = true;
+  const timer = setInterval(() => {
+    const nowMs = Date.now();
+    const cutoff = nowMs - WINDOW_SECONDS * 1000;
+    for (const [key, timestamps] of memoryWindows) {
+      const kept = timestamps.filter((ts) => ts > cutoff);
+      if (kept.length === 0) {
+        memoryWindows.delete(key);
+      } else {
+        memoryWindows.set(key, kept);
+      }
+    }
+  }, MEMORY_WINDOW_CLEANUP_MS);
+  if (typeof timer === "object" && "unref" in timer) {
+    timer.unref();
+  }
+}
 
 function getRule(route: string): { maxRequests: number } {
   return ROUTE_RULES[route] ?? ROUTE_RULES.default;
@@ -78,6 +100,7 @@ function memorySlidingWindow(
   key: string,
   rule: { maxRequests: number }
 ): RateLimitResult {
+  ensureMemoryWindowCleanup();
   const nowMs = Date.now();
   const windowMs = WINDOW_SECONDS * 1000;
   const cutoff = nowMs - windowMs;
