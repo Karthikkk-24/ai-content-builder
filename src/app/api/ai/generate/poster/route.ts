@@ -22,6 +22,7 @@ import { invalidateUserCache } from "@/lib/cache";
 import { db } from "@/lib/db";
 import { generations } from "@/lib/db/schema";
 import { ensureUser } from "@/lib/db/users";
+import { moderateAiImageOutput } from "@/lib/ai/moderate";
 import {
   sanitizeGeneratedOutputForStorage,
   sanitizeReferenceImageForStorage,
@@ -87,9 +88,18 @@ export async function POST(req: Request) {
       width,
       height,
     });
+    const moderatedImage = moderateAiImageOutput(imageUrl);
+    if (moderatedImage.blocked || !moderatedImage.url) {
+      return apiError(
+        "AI_FAILED",
+        moderatedImage.reason || "Generated image failed moderation.",
+        422,
+        requestId
+      );
+    }
     // Never return or persist provider API keys embedded in query strings.
-    const clientSafeUrl = scrubProviderSecretsFromUrl(imageUrl);
-    const storedOutput = sanitizeGeneratedOutputForStorage(imageUrl);
+    const clientSafeUrl = scrubProviderSecretsFromUrl(moderatedImage.url);
+    const storedOutput = sanitizeGeneratedOutputForStorage(clientSafeUrl);
 
     await db.insert(generations).values({
       userId,

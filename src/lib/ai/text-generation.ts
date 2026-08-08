@@ -5,6 +5,7 @@ import {
   buildCaptionSystemPrompt,
   buildTweetSystemPrompt,
 } from "@/lib/ai/prompts/prompt-upgrade";
+import { moderateAiTextOutput } from "@/lib/ai/moderate";
 import { delimitUntrusted, sanitizeContext, sanitizeUserInput } from "@/lib/ai/sanitize";
 import { invalidateUserCache } from "@/lib/cache";
 import { db } from "@/lib/db";
@@ -91,6 +92,12 @@ export async function generateAndPersistText({
     processedText = truncateToTweetLimit(processedText);
   }
 
+  const moderated = moderateAiTextOutput(processedText, generationType);
+  if (moderated.blocked) {
+    throw new Error(moderated.reason || "Output blocked by content moderation.");
+  }
+  processedText = moderated.text;
+
   await db.insert(generations).values({
     userId,
     type: generationType,
@@ -103,6 +110,10 @@ export async function generateAndPersistText({
       hasReferenceImage: Boolean(referenceImageUrl),
       originalLength: text.length,
       truncatedLength: processedText.length,
+      moderated: {
+        truncated: moderated.truncated,
+        strippedHtml: moderated.strippedHtml,
+      },
     },
   });
 

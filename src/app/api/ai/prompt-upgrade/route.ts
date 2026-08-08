@@ -10,6 +10,7 @@ import {
   appendRemarks,
   buildPromptUpgradeUserMessage,
 } from "@/lib/ai/prompts/prompt-upgrade";
+import { moderateAiTextOutput } from "@/lib/ai/moderate";
 import { sanitizeContext, sanitizeUserInput } from "@/lib/ai/sanitize";
 import {
   apiError,
@@ -79,21 +80,38 @@ export async function POST(req: Request) {
       prompt: userMessage,
     });
 
+    const moderated = moderateAiTextOutput(text, "prompt_upgrade");
+    if (moderated.blocked) {
+      return apiError(
+        "AI_FAILED",
+        moderated.reason || "Output blocked by content moderation.",
+        422,
+        requestId
+      );
+    }
+
     await db.insert(generations).values({
       userId,
       type: "prompt_upgrade",
       inputPrompt: sanitizedPrompt,
-      outputContent: text,
+      outputContent: moderated.text,
       referenceImageUrl: sanitizeReferenceImageForStorage(referenceImageUrl),
-      metadata: { context: sanitizedContext, remarks: remarks ?? null },
+      metadata: {
+        context: sanitizedContext,
+        remarks: remarks ?? null,
+        moderated: {
+          truncated: moderated.truncated,
+          strippedHtml: moderated.strippedHtml,
+        },
+      },
     });
 
     await invalidateUserCache(userId);
     await saveTextGenerationAsProject({
       userId,
       type: "prompt_upgrade",
-      prompt,
-      output: text,
+      prompt: sanitizedPrompt,
+      output: moderated.text,
     });
 
     logAction({
@@ -106,7 +124,7 @@ export async function POST(req: Request) {
     return apiSuccess(
       {
         original: prompt,
-        enhanced: text,
+        enhanced: moderated.text,
       },
       requestId
     );
