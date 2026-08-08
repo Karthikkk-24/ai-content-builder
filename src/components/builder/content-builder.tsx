@@ -20,6 +20,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { getApiErrorMessage } from "@/lib/api/client-error";
 import type { ContentBlock } from "@/lib/db/schema";
+import { blocksToMarkdown } from "@/lib/markdown-export";
 
 const blockTypes = [
   { type: "heading" as const, label: "Heading", icon: Heading1 },
@@ -28,27 +29,6 @@ const blockTypes = [
   { type: "divider" as const, label: "Divider", icon: Minus },
   { type: "cta" as const, label: "CTA", icon: MousePointerClick },
 ];
-
-function blocksToMarkdown(blocks: ContentBlock[]): string {
-  return blocks
-    .map((block) => {
-      switch (block.type) {
-        case "heading":
-          return `${"#".repeat(block.level || 1)} ${block.content}\n`;
-        case "paragraph":
-          return `${block.content}\n`;
-        case "image":
-          return `![${block.content}](${block.url || ""})\n`;
-        case "divider":
-          return "---\n";
-        case "cta":
-          return `[${block.content}](${block.url || "#"})\n`;
-        default:
-          return "";
-      }
-    })
-    .join("\n");
-}
 
 interface ContentBuilderProps {
   projectId?: string;
