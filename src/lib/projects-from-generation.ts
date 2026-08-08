@@ -4,6 +4,7 @@ import { invalidateUserCache } from "@/lib/cache";
 import { db } from "@/lib/db";
 import type { ContentBlock } from "@/lib/db/schema";
 import { contentProjects, generations } from "@/lib/db/schema";
+import { sanitizeBlockContentForMarkdown } from "@/lib/markdown-export";
 
 const MAX_TITLE_LENGTH = 60;
 
@@ -35,13 +36,16 @@ export async function saveTextGenerationAsProject({
     {
       id: randomUUID(),
       type: "heading",
-      content: formatTypeLabel(type),
+      content: sanitizeBlockContentForMarkdown(
+        formatTypeLabel(type),
+        "heading"
+      ),
       level: 2,
     },
     {
       id: randomUUID(),
       type: "paragraph",
-      content: output,
+      content: sanitizeBlockContentForMarkdown(output, "paragraph"),
     },
   ];
 
@@ -72,19 +76,22 @@ export async function saveImageGenerationAsProject({
     {
       id: randomUUID(),
       type: "heading",
-      content: formatTypeLabel(type),
+      content: sanitizeBlockContentForMarkdown(
+        formatTypeLabel(type),
+        "heading"
+      ),
       level: 2,
     },
     {
       id: randomUUID(),
       type: "image",
-      content: prompt,
+      content: sanitizeBlockContentForMarkdown(prompt, "plain"),
       url: imageUrl,
     },
     {
       id: randomUUID(),
       type: "paragraph",
-      content: prompt,
+      content: sanitizeBlockContentForMarkdown(prompt, "paragraph"),
     },
   ];
 
