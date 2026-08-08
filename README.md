@@ -30,6 +30,15 @@ A full-stack Next.js application for building content and generating AI-powered 
 - [Architecture](./docs/architecture.md) — data model, AI fallback tree, rate limits, webhooks, cache, health
 - [Operator manual](./docs/operator-manual.md) — key rotation, Redis flush, outage recovery, migrations
 
+### E2E
+
+```bash
+npx playwright install chromium
+npm run test:e2e                 # public health smoke + optional UI/auth suites
+```
+
+Authenticated generation specs need `E2E_CLERK_USER_EMAIL` / `E2E_CLERK_USER_PASSWORD`.
+
 ## Getting Started
 
 ### 1. Install dependencies
