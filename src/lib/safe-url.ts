@@ -28,37 +28,6 @@ function isIpv6Literal(hostname: string): boolean {
   return hostname.includes(":");
 }
 
-function ipv4ToInt(ip: string): number | null {
-  const parts = ip.split(".").map((p) => Number(p));
-  if (parts.length !== 4 || parts.some((n) => !Number.isInteger(n) || n < 0 || n > 255)) {
-    return null;
-  }
-  return ((parts[0] << 24) >>> 0) + (parts[1] << 16) + (parts[2] << 8) + parts[3];
-}
-
-function isPrivateOrReservedIpv4(ip: string): boolean {
-  const n = ipv4ToInt(ip);
-  if (n === null) return true;
-
-  const ranges: Array<[number, number]> = [
-    [ipv4ToInt("0.0.0.0")!, ipv4ToInt("0.255.255.255")!],
-    [ipv4ToInt("10.0.0.0")!, ipv4ToInt("10.255.255.255")!],
-    [ipv4ToInt("127.0.0.0")!, ipv4ToInt("127.255.255.255")!],
-    [ipv4ToInt("169.254.0.0")!, ipv4ToInt("169.254.255.255")!],
-    [ipv4ToInt("172.16.0.0")!, ipv4ToInt("172.31.255.255")!],
-    [ipv4ToInt("192.168.0.0")!, ipv4ToInt("192.168.255.255")!],
-    [ipv4ToInt("100.64.0.0")!, ipv4ToInt("100.127.255.255")!],
-    [ipv4ToInt("192.0.0.0")!, ipv4ToInt("192.0.0.255")!],
-    [ipv4ToInt("192.0.2.0")!, ipv4ToInt("192.0.2.255")!],
-    [ipv4ToInt("198.18.0.0")!, ipv4ToInt("198.19.255.255")!],
-    [ipv4ToInt("198.51.100.0")!, ipv4ToInt("198.51.100.255")!],
-    [ipv4ToInt("203.0.113.0")!, ipv4ToInt("203.0.113.255")!],
-    [ipv4ToInt("224.0.0.0")!, ipv4ToInt("255.255.255.255")!],
-  ];
-
-  return ranges.some(([start, end]) => n >= start && n <= end);
-}
-
 function hostAllowed(hostname: string): boolean {
   const host = hostname.toLowerCase().replace(/\.$/, "");
 

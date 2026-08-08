@@ -7,6 +7,11 @@ import {
   getRequestId,
   logAction,
 } from "@/lib/api/response";
+import {
+  PROJECT_JSON_BODY_LIMIT_BYTES,
+  jsonBodyErrorResponse,
+  readJsonBody,
+} from "@/lib/api/read-json";
 import { invalidateUserCache } from "@/lib/cache";
 import { db } from "@/lib/db";
 import { contentProjects } from "@/lib/db/schema";
@@ -65,8 +70,11 @@ export async function PATCH(
     await ensureUser(userId);
 
     const { id } = await params;
-    const body = await req.json();
-    const parsed = updateSchema.safeParse(body);
+    const rawBody = await readJsonBody(req, PROJECT_JSON_BODY_LIMIT_BYTES);
+    if (!rawBody.ok) {
+      return jsonBodyErrorResponse(rawBody, requestId);
+    }
+    const parsed = updateSchema.safeParse(rawBody.data);
     if (!parsed.success) {
       return apiError("INVALID_INPUT", "Invalid input", 400, requestId);
     }
