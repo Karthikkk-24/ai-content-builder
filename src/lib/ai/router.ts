@@ -1,6 +1,6 @@
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { createGroq } from "@ai-sdk/groq";
-import { generateText } from "ai";
+import { generateText, streamText } from "ai";
 import { sanitizeUserInput } from "@/lib/ai/sanitize";
 import { scrubProviderSecretsFromUrl } from "@/lib/image-utils";
 import {
@@ -239,6 +239,182 @@ export async function generateTextWithFallback({
   }
 
   throw errors.at(-1) ?? new Error("All text providers failed");
+}
+
+export type StreamTextResult = {
+  textStream: AsyncIterable<string>;
+  provider: TextProvider;
+  model: string;
+  fullText: () => Promise<string>;
+};
+
+/**
+ * Open a streaming completion with the same Gemini → Groq fallback order.
+ * Retries apply only while opening the stream (before the first chunk).
+ * Mid-stream failures should be handled by the caller (fallback to non-stream).
+ */
+export async function streamTextWithFallback({
+  system,
+  prompt,
+  preferredProvider = "gemini",
+}: {
+  system: string;
+  prompt: string;
+  preferredProvider?: TextProvider;
+}): Promise<StreamTextResult> {
+  const errors: Error[] = [];
+
+  const openGemini = async (
+    modelName: (typeof GEMINI_MODELS)[number]
+  ): Promise<StreamTextResult> => {
+    if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
+      throw new Error("Google AI API key is missing");
+    }
+
+    let lastError: unknown;
+    for (let attempt = 0; attempt < GEMINI_MAX_ATTEMPTS; attempt++) {
+      const timeout = withTimeoutSignal(AI_CALL_TIMEOUT_MS);
+      try {
+        const result = streamText({
+          model: google(modelName),
+          system,
+          prompt,
+          abortSignal: timeout.signal,
+          providerOptions: {
+            google: GEMINI_PROVIDER_SAFETY_SETTINGS,
+          },
+        });
+
+        const iterator = result.textStream[Symbol.asyncIterator]();
+        const first = await iterator.next();
+
+        async function* rest() {
+          try {
+            if (!first.done && first.value) {
+              yield first.value;
+            }
+            while (true) {
+              const next = await iterator.next();
+              if (next.done) break;
+              if (next.value) yield next.value;
+            }
+          } finally {
+            timeout.clear();
+          }
+        }
+
+        return {
+          textStream: rest(),
+          provider: "gemini",
+          model: modelName,
+          fullText: async () => {
+            try {
+              return await result.text;
+            } finally {
+              timeout.clear();
+            }
+          },
+        };
+      } catch (error) {
+        timeout.clear();
+        lastError = error;
+        if (
+          !isRetryableGeminiError(error) ||
+          attempt === GEMINI_MAX_ATTEMPTS - 1
+        ) {
+          break;
+        }
+        await sleep(GEMINI_RETRY_DELAYS_MS[attempt]);
+      }
+    }
+
+    throw lastError instanceof Error ? lastError : new Error(String(lastError));
+  };
+
+  const openGroq = async (): Promise<StreamTextResult> => {
+    const groq = getGroqClient();
+    if (!groq) {
+      throw new Error("Groq API key is missing");
+    }
+
+    let lastError: unknown;
+    for (let attempt = 0; attempt < GROQ_MAX_ATTEMPTS; attempt++) {
+      const timeout = withTimeoutSignal(AI_CALL_TIMEOUT_MS);
+      try {
+        const result = streamText({
+          model: groq("llama-3.3-70b-versatile"),
+          system,
+          prompt,
+          abortSignal: timeout.signal,
+        });
+
+        const iterator = result.textStream[Symbol.asyncIterator]();
+        const first = await iterator.next();
+
+        async function* rest() {
+          try {
+            if (!first.done && first.value) {
+              yield first.value;
+            }
+            while (true) {
+              const next = await iterator.next();
+              if (next.done) break;
+              if (next.value) yield next.value;
+            }
+          } finally {
+            timeout.clear();
+          }
+        }
+
+        return {
+          textStream: rest(),
+          provider: "groq",
+          model: "llama-3.3-70b-versatile",
+          fullText: async () => {
+            try {
+              return await result.text;
+            } finally {
+              timeout.clear();
+            }
+          },
+        };
+      } catch (error) {
+        timeout.clear();
+        lastError = error;
+        if (!isRetryableGroqError(error) || attempt === GROQ_MAX_ATTEMPTS - 1) {
+          break;
+        }
+        await sleep(GROQ_RETRY_DELAYS_MS[attempt]);
+      }
+    }
+
+    throw lastError instanceof Error ? lastError : new Error(String(lastError));
+  };
+
+  const providers: Array<"gemini" | "groq"> =
+    preferredProvider === "gemini" ? ["gemini", "groq"] : ["groq", "gemini"];
+
+  for (const provider of providers) {
+    try {
+      if (provider === "gemini") {
+        for (const modelName of GEMINI_MODELS) {
+          try {
+            return await openGemini(modelName);
+          } catch (error) {
+            errors.push(
+              error instanceof Error ? error : new Error(String(error))
+            );
+          }
+        }
+      } else {
+        return await openGroq();
+      }
+    } catch (error) {
+      errors.push(error instanceof Error ? error : new Error(String(error)));
+    }
+  }
+
+  throw errors.at(-1) ?? new Error("All text providers failed to stream");
 }
 
 export async function analyzeReferenceImage(imageUrl: string): Promise<string> {
