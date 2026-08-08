@@ -21,6 +21,9 @@ If ready returns 503, inspect `checks.database` / `checks.redis` in the JSON bod
 | `GOOGLE_GENERATIVE_AI_API_KEY` | Gemini text + vision | Google AI Studio |
 | `GROQ_API_KEY` | Llama text fallback | Groq console |
 | `POLLINATIONS_API_KEY` | Optional authenticated image fetch (server-side only) | Pollinations |
+| `OPENAI_API_KEY` | Optional DALL·E 3 images | OpenAI |
+| `RECRAFT_API_KEY` | Optional Recraft images | Recraft |
+| `STABILITY_API_KEY` | Optional Stability Core images | Stability |
 
 Steps:
 
