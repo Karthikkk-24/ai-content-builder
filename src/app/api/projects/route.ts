@@ -17,6 +17,7 @@ import { db } from "@/lib/db";
 import { contentProjects } from "@/lib/db/schema";
 import { ensureUser } from "@/lib/db/users";
 import { syncGenerationsToProjects } from "@/lib/projects-from-generation";
+import { parseLimitParam } from "@/lib/api/parse-limit";
 
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 100;
@@ -38,10 +39,10 @@ export async function GET(req: Request) {
     await ensureUser(userId);
 
     const { searchParams } = new URL(req.url);
-    const limit = Math.min(
-      Number(searchParams.get("limit") || DEFAULT_LIMIT),
-      MAX_LIMIT
-    );
+    const limit = parseLimitParam(searchParams.get("limit"), {
+      defaultLimit: DEFAULT_LIMIT,
+      maxLimit: MAX_LIMIT,
+    });
 
     // Incremental sync of generations that were never linked to a project.
     // Safe because sync only inserts rows with null generation_id join matches.
