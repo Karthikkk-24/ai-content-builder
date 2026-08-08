@@ -14,7 +14,7 @@ export default function CaptionsPage() {
           key: "platform",
           label: "Platform",
           type: "select",
-          options: ["Instagram", "LinkedIn", "Facebook", "TikTok"],
+          options: ["Instagram", "LinkedIn", "Facebook", "TikTok", "X"],
         },
         {
           key: "tone",

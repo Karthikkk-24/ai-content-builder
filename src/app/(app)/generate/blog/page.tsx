@@ -11,6 +11,12 @@ export default function BlogPage() {
       showReferenceImage={false}
       contextFields={[
         {
+          key: "blogType",
+          label: "Blog type",
+          type: "select",
+          options: ["how-to", "listicle", "review", "opinion", "news"],
+        },
+        {
           key: "tone",
           label: "Tone",
           type: "select",

@@ -37,6 +37,7 @@ function buildSystemPrompt(
     return buildBlogSystemPrompt({
       tone: context?.tone,
       audience: context?.audience,
+      blogType: context?.blogType,
     });
   }
 
