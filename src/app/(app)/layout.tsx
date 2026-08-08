@@ -1,6 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { AppShell } from "@/components/layout/app-shell";
 import { ensureUser } from "@/lib/db/users";
+import { isRedisConfigured } from "@/lib/redis";
 
 export default async function AppLayout({
   children,
@@ -17,5 +18,10 @@ export default async function AppLayout({
     }
   }
 
-  return <AppShell>{children}</AppShell>;
+  const showRedisWarning =
+    process.env.NODE_ENV === "production" && !isRedisConfigured();
+
+  return (
+    <AppShell showRedisWarning={showRedisWarning}>{children}</AppShell>
+  );
 }
