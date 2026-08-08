@@ -20,6 +20,7 @@ A full-stack Next.js application for building content and generating AI-powered 
 - Clerk (auth) + Neon Postgres (database) + Drizzle ORM
 - Vercel AI SDK (Gemini + Groq)
 - Pollinations Flux (free image generation)
+- Optional image providers: OpenAI DALL·E 3, Recraft, Stability (see env)
 - Uploadthing (reference image uploads → persistent URLs)
 - Upstash Redis (caching, rate limits, session metadata)
 - Framer Motion (sidebar animations)

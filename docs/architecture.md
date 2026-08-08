@@ -30,20 +30,31 @@ sequenceDiagram
 
 ### Image generation
 
+1. Build prompt (optionally with style continuity / reference analysis).
+2. `generateImage` tries providers in order when keys exist:
+   1. OpenAI DALL·E 3 (`OPENAI_API_KEY`)
+   2. Recraft (`RECRAFT_API_KEY`)
+   3. Stability Core (`STABILITY_API_KEY`)
+   4. Pollinations Flux (always available fallback)
+3. Bytes are rehosted via Uploadthing when `UPLOADTHING_TOKEN` is set; keyed provider URLs are never returned to clients.
+4. Persist generation + linked project; `metadata.provider` records which backend produced the image.
+
 ```mermaid
 flowchart TD
   A[POST /api/ai/generate/photo|poster] --> B[Rate limit]
-  B --> C[Pollinations Flux fetch]
-  C --> D{Response type}
-  D -->|JSON url| E[Scrub secrets from URL]
-  D -->|Image bytes| F{UPLOADTHING_TOKEN?}
-  F -->|yes| G[UTApi rehost → ufsUrl]
-  F -->|no + no API key| H[Public Pollinations URL]
-  F -->|no + keyed| I[Data URL only — never keyed URL]
-  E --> J[Persist generation + project]
-  G --> J
-  H --> J
-  I --> J
+  B --> C[Image provider router]
+  C --> D{OPENAI_API_KEY?}
+  D -->|yes| E[DALL·E 3]
+  D -->|no / fail| F{RECRAFT_API_KEY?}
+  F -->|yes| G[Recraft]
+  F -->|no / fail| H{STABILITY_API_KEY?}
+  H -->|yes| I[Stability]
+  H -->|no / fail| J[Pollinations Flux]
+  E --> K[Rehost / scrub secrets]
+  G --> K
+  I --> K
+  J --> K
+  K --> L[Persist generation + project]
 ```
 
 ### Public share

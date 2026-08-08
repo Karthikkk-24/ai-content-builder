@@ -24,6 +24,9 @@ describe("generateImage secret handling", () => {
     uploadFiles.mockReset();
     process.env.POLLINATIONS_API_KEY = "super-secret-pollinations-key";
     delete process.env.UPLOADTHING_TOKEN;
+    delete process.env.OPENAI_API_KEY;
+    delete process.env.RECRAFT_API_KEY;
+    delete process.env.STABILITY_API_KEY;
   });
 
   afterEach(() => {

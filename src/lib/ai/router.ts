@@ -2,7 +2,6 @@ import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { createGroq } from "@ai-sdk/groq";
 import { generateText, streamText } from "ai";
 import { sanitizeUserInput } from "@/lib/ai/sanitize";
-import { scrubProviderSecretsFromUrl } from "@/lib/image-utils";
 import {
   fetchAllowlistedImage,
   isAllowedDataImageUrl,
@@ -50,7 +49,6 @@ const GEMINI_PROVIDER_SAFETY_SETTINGS = {
 };
 
 const AI_CALL_TIMEOUT_MS = 45_000;
-const IMAGE_FETCH_TIMEOUT_MS = 45_000;
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -496,79 +494,12 @@ export async function analyzeReferenceImage(imageUrl: string): Promise<string> {
   }
 }
 
-function buildPollinationsImageUrl({
-  prompt,
-  width,
-  height,
-  seed,
-  includeApiKey,
-}: {
-  prompt: string;
-  width: number;
-  height: number;
-  seed: number;
-  includeApiKey: boolean;
-}): URL {
-  const encodedPrompt = encodeURIComponent(prompt);
-  const url = new URL(`https://image.pollinations.ai/prompt/${encodedPrompt}`);
-  url.searchParams.set("model", "flux");
-  url.searchParams.set("width", String(width));
-  url.searchParams.set("height", String(height));
-  url.searchParams.set("nologo", "true");
-  url.searchParams.set("seed", String(seed));
-
-  const apiKey = process.env.POLLINATIONS_API_KEY;
-  if (includeApiKey && apiKey) {
-    // Server-only: never return this URL to clients or persist it.
-    url.searchParams.set("key", apiKey);
-  }
-
-  return url;
-}
-
-async function rehostGeneratedImage(
-  buffer: ArrayBuffer,
-  contentType: string
-): Promise<string | null> {
-  if (!process.env.UPLOADTHING_TOKEN) {
-    return null;
-  }
-
-  try {
-    const { UTApi, UTFile } = await import("uploadthing/server");
-    const utapi = new UTApi();
-    const extension = contentType.includes("png")
-      ? "png"
-      : contentType.includes("webp")
-        ? "webp"
-        : "jpg";
-    const file = new UTFile(
-      [Buffer.from(buffer)],
-      `generated-${Date.now()}.${extension}`,
-      { type: contentType.split(";")[0].trim() || "image/jpeg" }
-    );
-    const result = await utapi.uploadFiles(file);
-    if (result.error || !result.data?.ufsUrl) {
-      console.error("Failed to rehost generated image:", result.error);
-      return null;
-    }
-    return result.data.ufsUrl;
-  } catch (error) {
-    console.error("Failed to rehost generated image:", error);
-    return null;
-  }
-}
-
-function bufferToDataUrl(buffer: ArrayBuffer, contentType: string): string {
-  const base64 = Buffer.from(buffer).toString("base64");
-  return `data:${contentType};base64,${base64}`;
-}
 
 /**
- * Generate an image via Pollinations.
+ * Generate an image via the multi-provider router
+ * (OpenAI DALL·E 3 → Recraft → Stability → Pollinations).
  *
- * The provider API key is used only for the server-side fetch and is never
- * included in the returned URL (clients, DB, and project blocks).
+ * Provider API keys are used only server-side and never returned in URLs.
  */
 export async function generateImage({
   prompt,
@@ -579,79 +510,10 @@ export async function generateImage({
   width?: number;
   height?: number;
 }): Promise<{ imageUrl: string; provider: string }> {
-  const seed = Date.now() % 1_000_000;
-  const hasApiKey = Boolean(process.env.POLLINATIONS_API_KEY);
-
-  // Authenticated fetch URL (may contain key) — server-only.
-  const fetchUrl = buildPollinationsImageUrl({
-    prompt,
-    width,
-    height,
-    seed,
-    includeApiKey: true,
-  });
-  // Key-free URL safe to expose when the provider does not require auth to view.
-  const publicUrl = buildPollinationsImageUrl({
-    prompt,
-    width,
-    height,
-    seed,
-    includeApiKey: false,
-  }).toString();
-
-  const timeout = withTimeoutSignal(IMAGE_FETCH_TIMEOUT_MS);
-  let response: Response;
-  try {
-    response = await fetch(fetchUrl.toString(), { signal: timeout.signal });
-  } finally {
-    timeout.clear();
-  }
-
-  if (!response.ok) {
-    throw new Error(`Image generation failed: ${response.statusText}`);
-  }
-
-  const contentType = response.headers.get("content-type") || "image/jpeg";
-
-  if (contentType.includes("application/json")) {
-    const data = await response.json();
-    if (typeof data?.url === "string" && data.url.length > 0) {
-      return {
-        imageUrl: scrubProviderSecretsFromUrl(data.url),
-        provider: "pollinations",
-      };
-    }
-    throw new Error("Unexpected image response format");
-  }
-
-  if (contentType.startsWith("image/")) {
-    const buffer = await response.arrayBuffer();
-
-    // Prefer durable public hosting so we never need to ship a keyed URL.
-    const hostedUrl = await rehostGeneratedImage(buffer, contentType);
-    if (hostedUrl) {
-      return { imageUrl: hostedUrl, provider: "pollinations" };
-    }
-
-    // No API key in use: key-free Pollinations URL is safe to store/return.
-    if (!hasApiKey) {
-      return { imageUrl: publicUrl, provider: "pollinations" };
-    }
-
-    // Key was required for generation — never return the fetch URL. Fall back
-    // to an inline data URL so the client can still render the image.
-    return {
-      imageUrl: bufferToDataUrl(buffer, contentType),
-      provider: "pollinations",
-    };
-  }
-
-  const buffer = await response.arrayBuffer();
-  return {
-    imageUrl: bufferToDataUrl(buffer, contentType),
-    provider: "pollinations",
-  };
+  const { generateImageWithRouter } = await import("@/lib/ai/image-providers");
+  return generateImageWithRouter({ prompt, width, height });
 }
+
 
 export function getAspectDimensions(aspectRatio: string): {
   width: number;
