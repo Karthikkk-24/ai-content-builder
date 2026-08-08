@@ -25,7 +25,7 @@ export default function PostersPage() {
           key: "aspectRatio",
           label: "Aspect Ratio",
           type: "select",
-          options: ["1:1", "16:9", "9:16", "4:3"],
+          options: ["1:1", "16:9", "9:16", "4:3", "3:2"],
         },
         {
           key: "audience",
