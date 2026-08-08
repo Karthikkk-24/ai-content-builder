@@ -99,10 +99,16 @@ In Clerk Dashboard → **Sessions**:
 
 The app includes a `SessionKeeper` that refreshes your Clerk token every 5 minutes so you stay signed in.
 
-### 7. Configure Uploadthing (required for reference image uploads)
+### 7. Configure Uploadthing (required for reference images + generated image hosting)
 
 Reference images are uploaded to Uploadthing and stored as persistent HTTPS URLs
 so they can be reused across sessions and survive regenerations.
+
+When `POLLINATIONS_API_KEY` is set, generated photo/poster bytes are also
+re-hosted via Uploadthing so the provider key is **never** returned to clients
+or written to the database. Without Uploadthing, the server falls back to an
+inline data URL (still key-free). Rotate `POLLINATIONS_API_KEY` if it was ever
+exposed in History “View” links.
 
 1. Sign up at [uploadthing.com](https://uploadthing.com) and create an app.
 2. Copy your `UPLOADTHING_TOKEN` to `.env.local`.
@@ -111,6 +117,10 @@ so they can be reused across sessions and survive regenerations.
 
 Uploaded files are persisted in the `reference_images` table with the owner's
 userId, making audit/history accurate.
+
+Run migrations after deploy so any previously leaked `?key=` values are scrubbed
+from `generations.output_content` and project block URLs
+(`drizzle/0002_scrub_provider_secrets.sql`).
 
 ### 8. Configure Redis (optional, recommended for production)
 

@@ -10,6 +10,7 @@ import {
 import {
   GENERATED_IMAGE_PLACEHOLDER,
   sanitizeGeneratedOutputForStorage,
+  scrubProviderSecretsFromUrl,
 } from "@/lib/image-utils";
 import { buildTitle } from "@/lib/projects-from-generation";
 
@@ -63,6 +64,34 @@ describe("sanitizeGeneratedOutputForStorage", () => {
     expect(sanitizeGeneratedOutputForStorage(huge)).toBe(
       GENERATED_IMAGE_PLACEHOLDER
     );
+  });
+
+  it("strips provider API keys before storage", () => {
+    const leaked =
+      "https://image.pollinations.ai/prompt/test?model=flux&key=secret-key&seed=1";
+    expect(sanitizeGeneratedOutputForStorage(leaked)).toBe(
+      "https://image.pollinations.ai/prompt/test?model=flux&seed=1"
+    );
+  });
+});
+
+describe("scrubProviderSecretsFromUrl", () => {
+  it("removes key and token query params", () => {
+    const input =
+      "https://image.pollinations.ai/prompt/hello%20world?width=1024&key=abc123&token=xyz&seed=9";
+    expect(scrubProviderSecretsFromUrl(input)).toBe(
+      "https://image.pollinations.ai/prompt/hello%20world?width=1024&seed=9"
+    );
+  });
+
+  it("leaves data URLs unchanged", () => {
+    const dataUrl = "data:image/png;base64,aaaa";
+    expect(scrubProviderSecretsFromUrl(dataUrl)).toBe(dataUrl);
+  });
+
+  it("leaves URLs without secrets unchanged", () => {
+    const url = "https://utfs.io/f/abc.png";
+    expect(scrubProviderSecretsFromUrl(url)).toBe(url);
   });
 });
 
