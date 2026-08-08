@@ -8,7 +8,7 @@ export async function POST(req: Request) {
   try {
     const { userId } = await auth();
     if (!userId) {
-      return apiError("UNAUTHORIZED", "Unauthorized", 401, requestId);
+      return apiError("UNAUTHORIZED", "Unauthorized", 401, requestId, { action: "auth" });
     }
 
     await touchUserSession(userId);

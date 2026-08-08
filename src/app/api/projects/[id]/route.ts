@@ -31,7 +31,7 @@ export async function GET(
   try {
     const { userId } = await auth();
     if (!userId) {
-      return apiError("UNAUTHORIZED", "Unauthorized", 401, requestId);
+      return apiError("UNAUTHORIZED", "Unauthorized", 401, requestId, { action: "auth" });
     }
 
     await ensureUser(userId);
@@ -64,7 +64,7 @@ export async function PATCH(
   try {
     const { userId } = await auth();
     if (!userId) {
-      return apiError("UNAUTHORIZED", "Unauthorized", 401, requestId);
+      return apiError("UNAUTHORIZED", "Unauthorized", 401, requestId, { action: "auth" });
     }
 
     await ensureUser(userId);
@@ -119,7 +119,7 @@ export async function DELETE(
   try {
     const { userId } = await auth();
     if (!userId) {
-      return apiError("UNAUTHORIZED", "Unauthorized", 401, requestId);
+      return apiError("UNAUTHORIZED", "Unauthorized", 401, requestId, { action: "auth" });
     }
 
     await ensureUser(userId);
