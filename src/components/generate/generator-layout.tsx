@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { Copy, Download, Loader2, RefreshCw, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -45,6 +46,7 @@ export function GeneratorLayout({
   extraPayload = {},
   charLimit,
 }: GeneratorLayoutProps) {
+  const searchParams = useSearchParams();
   const [prompt, setPrompt] = useState("");
   const [context, setContext] = useState<Record<string, string>>({});
   const [referenceImage, setReferenceImage] = useState<string | null>(null);
@@ -54,6 +56,13 @@ export function GeneratorLayout({
   const [upgrading, setUpgrading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    const fromQuery = searchParams.get("prompt");
+    if (fromQuery && fromQuery.trim()) {
+      setPrompt(fromQuery);
+    }
+  }, [searchParams]);
 
   const isThreadMode = context.threadMode === "thread";
   const promptOverLimit = Boolean(
