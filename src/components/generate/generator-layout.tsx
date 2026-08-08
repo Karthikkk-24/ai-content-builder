@@ -64,6 +64,37 @@ export function GeneratorLayout({
     }
   }, [searchParams]);
 
+  useEffect(() => {
+    let cancelled = false;
+    const toneField = contextFields.find((field) => field.key === "tone");
+    if (!toneField?.options?.length) return;
+
+    void (async () => {
+      try {
+        const res = await fetch("/api/preferences");
+        if (!res.ok) return;
+        const data = (await res.json()) as { defaultTone?: string | null };
+        const preferred = data.defaultTone;
+        if (
+          !preferred ||
+          cancelled ||
+          !toneField.options?.includes(preferred)
+        ) {
+          return;
+        }
+        setContext((prev) =>
+          prev.tone ? prev : { ...prev, tone: preferred }
+        );
+      } catch {
+        // Preferences are optional defaults.
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [contextFields]);
+
   const isThreadMode = context.threadMode === "thread";
   const promptOverLimit = Boolean(
     charLimit && !isThreadMode && prompt.length > charLimit
