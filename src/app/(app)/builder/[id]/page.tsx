@@ -17,6 +17,7 @@ export default function BuilderEditPage() {
   const [error, setError] = useState<string | null>(null);
   const [title, setTitle] = useState("Untitled");
   const [blocks, setBlocks] = useState<ContentBlock[]>([]);
+  const [isPublic, setIsPublic] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -30,12 +31,17 @@ export default function BuilderEditPage() {
         const data = await response.json();
 
         if (!response.ok) {
-          throw new Error(data.error || "Failed to load project");
+          throw new Error(
+            typeof data.error === "string"
+              ? data.error
+              : data.error?.message || "Failed to load project"
+          );
         }
 
         if (!cancelled) {
           setTitle(data.title || "Untitled");
           setBlocks(Array.isArray(data.blocks) ? data.blocks : []);
+          setIsPublic(Boolean(data.isPublic));
         }
       } catch (err) {
         if (!cancelled) {
@@ -81,6 +87,7 @@ export default function BuilderEditPage() {
       projectId={id}
       initialTitle={title}
       initialBlocks={blocks}
+      initialIsPublic={isPublic}
     />
   );
 }

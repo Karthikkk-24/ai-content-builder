@@ -20,6 +20,7 @@ import { ensureUser } from "@/lib/db/users";
 const updateSchema = z.object({
   title: z.string().optional(),
   blocks: z.array(z.any()).optional(),
+  isPublic: z.boolean().optional(),
 });
 
 export async function GET(
