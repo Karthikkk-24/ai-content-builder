@@ -1,17 +1,20 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mockEval = vi.fn();
+let redisConfigured = true;
 
 vi.mock("@/lib/redis", () => ({
   getRedis: () => ({
     eval: mockEval,
   }),
-  isRedisConfigured: () => true,
+  isRedisConfigured: () => redisConfigured,
 }));
 
 describe("checkRateLimit", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    redisConfigured = true;
+    vi.unstubAllEnvs();
   });
 
   it("allows the first request and reports success", async () => {
@@ -50,26 +53,34 @@ describe("checkRateLimit", () => {
 
   it("falls back to in-memory limiting in development when Redis errors", async () => {
     mockEval.mockRejectedValue(new Error("Redis connection failed"));
+    vi.stubEnv("NODE_ENV", "development");
 
     const { checkRateLimit } = await import("@/lib/rate-limit");
-    const result = await checkRateLimit("user_1", "tweet");
-    // In dev the in-memory fallback should allow the request through
+    const result = await checkRateLimit("user_dev_fallback", "tweet");
     expect(result.allowed).toBe(true);
+  });
+
+  it("memory limiter allows up to the route max then denies", async () => {
+    redisConfigured = false;
+    vi.stubEnv("NODE_ENV", "development");
+
+    const { checkRateLimit } = await import("@/lib/rate-limit");
+    for (let i = 0; i < 20; i++) {
+      const allowed = await checkRateLimit("mem_user_boundary", "tweet");
+      expect(allowed.allowed).toBe(true);
+    }
+    const denied = await checkRateLimit("mem_user_boundary", "tweet");
+    expect(denied.allowed).toBe(false);
+    expect(denied.retryAfterSeconds).toBeGreaterThan(0);
   });
 
   it("kills request in production when Redis errors", async () => {
     mockEval.mockRejectedValue(new Error("Redis connection failed"));
-    const originalEnv = process.env.NODE_ENV;
     vi.stubEnv("NODE_ENV", "production");
 
-    try {
-      vi.resetModules();
-      const { checkRateLimit } = await import("@/lib/rate-limit");
-      const result = await checkRateLimit("user_1", "tweet");
-      expect(result.allowed).toBe(false);
-      expect(result.retryAfterSeconds).toBe(60);
-    } finally {
-      vi.stubEnv("NODE_ENV", originalEnv);
-    }
+    const { checkRateLimit } = await import("@/lib/rate-limit");
+    const result = await checkRateLimit("user_prod", "tweet");
+    expect(result.allowed).toBe(false);
+    expect(result.retryAfterSeconds).toBe(60);
   });
 });
