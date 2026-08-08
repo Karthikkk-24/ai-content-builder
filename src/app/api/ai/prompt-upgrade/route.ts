@@ -18,6 +18,11 @@ import {
   getRequestId,
   logAction,
 } from "@/lib/api/response";
+import {
+  AI_JSON_BODY_LIMIT_BYTES,
+  jsonBodyErrorResponse,
+  readJsonBody,
+} from "@/lib/api/read-json";
 import { invalidateUserCache } from "@/lib/cache";
 import { db } from "@/lib/db";
 import { generations } from "@/lib/db/schema";
@@ -25,6 +30,8 @@ import { ensureUser } from "@/lib/db/users";
 import { sanitizeReferenceImageForStorage } from "@/lib/image-utils";
 import { saveTextGenerationAsProject } from "@/lib/projects-from-generation";
 import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
+
+export const maxDuration = 60;
 
 const schema = z.object({
   prompt: z.string().min(1),
@@ -49,8 +56,11 @@ export async function POST(req: Request) {
 
     await ensureUser(userId);
 
-    const body = await req.json();
-    const parsed = schema.safeParse(body);
+    const rawBody = await readJsonBody(req, AI_JSON_BODY_LIMIT_BYTES);
+    if (!rawBody.ok) {
+      return jsonBodyErrorResponse(rawBody, requestId);
+    }
+    const parsed = schema.safeParse(rawBody.data);
     if (!parsed.success) {
       return apiError("INVALID_INPUT", "Invalid input", 400, requestId);
     }

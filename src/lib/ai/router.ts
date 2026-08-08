@@ -49,8 +49,23 @@ const GEMINI_PROVIDER_SAFETY_SETTINGS = {
   ],
 };
 
+const AI_CALL_TIMEOUT_MS = 45_000;
+const IMAGE_FETCH_TIMEOUT_MS = 45_000;
+
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function withTimeoutSignal(timeoutMs: number): {
+  signal: AbortSignal;
+  clear: () => void;
+} {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  return {
+    signal: controller.signal,
+    clear: () => clearTimeout(timer),
+  };
 }
 
 function getErrorMessage(error: unknown) {
@@ -95,11 +110,13 @@ async function generateWithGemini({
   let lastError: unknown;
 
   for (let attempt = 0; attempt < GEMINI_MAX_ATTEMPTS; attempt++) {
+    const timeout = withTimeoutSignal(AI_CALL_TIMEOUT_MS);
     try {
       const result = await generateText({
         model: google(modelName),
         system,
         prompt,
+        abortSignal: timeout.signal,
         providerOptions: {
           google: GEMINI_PROVIDER_SAFETY_SETTINGS,
         },
@@ -114,6 +131,8 @@ async function generateWithGemini({
       }
 
       await sleep(GEMINI_RETRY_DELAYS_MS[attempt]);
+    } finally {
+      timeout.clear();
     }
   }
 
@@ -138,11 +157,13 @@ async function generateWithGroq({
   let lastError: unknown;
 
   for (let attempt = 0; attempt < GROQ_MAX_ATTEMPTS; attempt++) {
+    const timeout = withTimeoutSignal(AI_CALL_TIMEOUT_MS);
     try {
       const result = await generateText({
         model: groq("llama-3.3-70b-versatile"),
         system,
         prompt,
+        abortSignal: timeout.signal,
       });
 
       return {
@@ -156,6 +177,8 @@ async function generateWithGroq({
         break;
       }
       await sleep(GROQ_RETRY_DELAYS_MS[attempt]);
+    } finally {
+      timeout.clear();
     }
   }
 
@@ -239,6 +262,7 @@ export async function analyzeReferenceImage(imageUrl: string): Promise<string> {
     for (const modelName of GEMINI_MODELS) {
       try {
         for (let attempt = 0; attempt < GEMINI_MAX_ATTEMPTS; attempt++) {
+          const timeout = withTimeoutSignal(AI_CALL_TIMEOUT_MS);
           try {
             const result = await generateText({
               model: google(modelName),
@@ -257,6 +281,7 @@ export async function analyzeReferenceImage(imageUrl: string): Promise<string> {
                   ],
                 },
               ],
+              abortSignal: timeout.signal,
               providerOptions: {
                 google: GEMINI_PROVIDER_SAFETY_SETTINGS,
               },
@@ -272,6 +297,8 @@ export async function analyzeReferenceImage(imageUrl: string): Promise<string> {
             }
 
             await sleep(GEMINI_RETRY_DELAYS_MS[attempt]);
+          } finally {
+            timeout.clear();
           }
         }
       } catch {
@@ -388,7 +415,13 @@ export async function generateImage({
     includeApiKey: false,
   }).toString();
 
-  const response = await fetch(fetchUrl.toString());
+  const timeout = withTimeoutSignal(IMAGE_FETCH_TIMEOUT_MS);
+  let response: Response;
+  try {
+    response = await fetch(fetchUrl.toString(), { signal: timeout.signal });
+  } finally {
+    timeout.clear();
+  }
 
   if (!response.ok) {
     throw new Error(`Image generation failed: ${response.statusText}`);
