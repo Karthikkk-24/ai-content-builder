@@ -14,7 +14,7 @@ import {
 } from "@/lib/api/read-json";
 import { invalidateUserCache } from "@/lib/cache";
 import { db } from "@/lib/db";
-import { contentProjects } from "@/lib/db/schema";
+import { contentProjects, generations } from "@/lib/db/schema";
 import { ensureUser } from "@/lib/db/users";
 
 const updateSchema = z.object({
@@ -125,11 +125,42 @@ export async function DELETE(
     await ensureUser(userId);
 
     const { id } = await params;
+    const [project] = await db
+      .select({
+        id: contentProjects.id,
+        generationId: contentProjects.generationId,
+      })
+      .from(contentProjects)
+      .where(
+        and(eq(contentProjects.id, id), eq(contentProjects.userId, userId))
+      )
+      .limit(1);
+
+    if (!project) {
+      return apiError("NOT_FOUND", "Project not found", 404, requestId, {
+        userId,
+        action: "project.delete",
+      });
+    }
+
+    // Delete project first so the generation_id FK (ON DELETE SET NULL) is cleared.
     await db
       .delete(contentProjects)
       .where(
         and(eq(contentProjects.id, id), eq(contentProjects.userId, userId))
       );
+
+    // Erase the linked generation when present (GDPR / no orphan history).
+    if (project.generationId) {
+      await db
+        .delete(generations)
+        .where(
+          and(
+            eq(generations.id, project.generationId),
+            eq(generations.userId, userId)
+          )
+        );
+    }
 
     await invalidateUserCache(userId);
     logAction({
@@ -138,6 +169,9 @@ export async function DELETE(
       userId,
       outcome: "success",
       resource: id,
+      detail: project.generationId
+        ? `deleted_generation=${project.generationId}`
+        : undefined,
     });
 
     return apiSuccess({ success: true }, requestId);
