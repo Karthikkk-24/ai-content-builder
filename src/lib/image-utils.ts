@@ -68,21 +68,60 @@ function fitWithinBounds(
 const MAX_STORABLE_DATA_URL_LENGTH = 100_000;
 export const GENERATED_IMAGE_PLACEHOLDER = "[generated-image]";
 
+/** Query params that must never leave the server (provider API keys, tokens). */
+const SECRET_QUERY_PARAMS = new Set([
+  "key",
+  "api_key",
+  "apikey",
+  "access_token",
+  "token",
+]);
+
+/**
+ * Strip provider secrets from a URL before returning it to clients or storing it.
+ * Non-URL strings (e.g. data URLs, plain text) are returned unchanged.
+ */
+export function scrubProviderSecretsFromUrl(value: string): string {
+  if (!value || value.startsWith("data:")) {
+    return value;
+  }
+
+  try {
+    const url = new URL(value);
+    let changed = false;
+    for (const param of [...url.searchParams.keys()]) {
+      if (SECRET_QUERY_PARAMS.has(param.toLowerCase())) {
+        url.searchParams.delete(param);
+        changed = true;
+      }
+    }
+    return changed ? url.toString() : value;
+  } catch {
+    // Not a parseable absolute URL — strip common key= patterns defensively.
+    return value.replace(
+      /([?&])(key|api_key|apikey|access_token|token)=([^&#]*)/gi,
+      "$1"
+    ).replace(/[?&]$/, "");
+  }
+}
+
 export function sanitizeReferenceImageForStorage(url: string | null | undefined) {
   if (!url || url.startsWith("data:")) {
     return null;
   }
 
-  return url;
+  return scrubProviderSecretsFromUrl(url);
 }
 
 export function sanitizeGeneratedOutputForStorage(content: string) {
+  const scrubbed = scrubProviderSecretsFromUrl(content);
+
   if (
-    content.startsWith("data:image/") &&
-    content.length > MAX_STORABLE_DATA_URL_LENGTH
+    scrubbed.startsWith("data:image/") &&
+    scrubbed.length > MAX_STORABLE_DATA_URL_LENGTH
   ) {
     return GENERATED_IMAGE_PLACEHOLDER;
   }
 
-  return content;
+  return scrubbed;
 }

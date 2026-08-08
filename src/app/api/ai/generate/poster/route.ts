@@ -25,6 +25,7 @@ import { ensureUser } from "@/lib/db/users";
 import {
   sanitizeGeneratedOutputForStorage,
   sanitizeReferenceImageForStorage,
+  scrubProviderSecretsFromUrl,
 } from "@/lib/image-utils";
 import { saveImageGenerationAsProject } from "@/lib/projects-from-generation";
 import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
@@ -86,12 +87,15 @@ export async function POST(req: Request) {
       width,
       height,
     });
+    // Never return or persist provider API keys embedded in query strings.
+    const clientSafeUrl = scrubProviderSecretsFromUrl(imageUrl);
+    const storedOutput = sanitizeGeneratedOutputForStorage(imageUrl);
 
     await db.insert(generations).values({
       userId,
       type: "poster",
       inputPrompt: sanitizedPrompt,
-      outputContent: sanitizeGeneratedOutputForStorage(imageUrl),
+      outputContent: storedOutput,
       referenceImageUrl: sanitizeReferenceImageForStorage(referenceImageUrl),
       metadata: { context: sanitizedContext, provider, remarks: remarks ?? null },
     });
@@ -101,7 +105,7 @@ export async function POST(req: Request) {
       userId,
       type: "poster",
       prompt: sanitizedPrompt,
-      imageUrl,
+      imageUrl: clientSafeUrl,
     });
 
     logAction({
@@ -111,7 +115,7 @@ export async function POST(req: Request) {
       outcome: "success",
     });
 
-    return apiSuccess({ output: imageUrl }, requestId);
+    return apiSuccess({ output: clientSafeUrl }, requestId);
   } catch (error) {
     console.error("Poster generation error:", error);
     return apiError("AI_FAILED", formatAiError(error), 500, requestId);
