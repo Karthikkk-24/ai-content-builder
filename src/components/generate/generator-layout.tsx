@@ -110,22 +110,31 @@ export function GeneratorLayout({
       setRemarks("");
     }
 
-    try {
-      const payload: Record<string, unknown> = {
-        prompt,
-        context: { ...context, generationType },
-        referenceImageUrl: referenceImage,
-        ...extraPayload,
-      };
+    const payload: Record<string, unknown> = {
+      prompt,
+      context: { ...context, generationType },
+      referenceImageUrl: referenceImage,
+      ...extraPayload,
+    };
 
-      if (regenerate && remarks.trim()) {
-        payload.remarks = remarks.trim();
+    if (regenerate && remarks.trim()) {
+      payload.remarks = remarks.trim();
+    }
+
+    try {
+      if (outputType === "text") {
+        try {
+          await runTextStream(payload);
+          return;
+        } catch (streamErr) {
+          console.warn("Stream generate failed; falling back to JSON", streamErr);
+        }
       }
 
       const res = await fetch(apiEndpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({ ...payload, stream: false }),
       });
 
       const data = await res.json();
@@ -137,6 +146,82 @@ export function GeneratorLayout({
       setError(err instanceof Error ? err.message : "Generation failed");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const runTextStream = async (payload: Record<string, unknown>) => {
+    setOutput("");
+    const res = await fetch(apiEndpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "text/event-stream",
+      },
+      body: JSON.stringify({ ...payload, stream: true }),
+    });
+
+    const contentType = res.headers.get("content-type") || "";
+    if (!res.ok || !contentType.includes("text/event-stream")) {
+      // Non-stream error or unexpected JSON response.
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        throw new Error(getApiErrorMessage(data, "Generation failed"));
+      }
+      if (data?.output) {
+        setOutput(data.output);
+        return;
+      }
+      throw new Error("Streaming response was not available");
+    }
+
+    if (!res.body) {
+      throw new Error("Empty stream body");
+    }
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    let sawDone = false;
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const parts = buffer.split("\n\n");
+      buffer = parts.pop() || "";
+
+      for (const part of parts) {
+        const line = part
+          .split("\n")
+          .find((l) => l.startsWith("data: "));
+        if (!line) continue;
+        const json = line.slice(6).trim();
+        if (!json) continue;
+        let event: {
+          type: string;
+          text?: string;
+          output?: string;
+          message?: string;
+        };
+        try {
+          event = JSON.parse(json);
+        } catch {
+          continue;
+        }
+
+        if (event.type === "delta" && typeof event.text === "string") {
+          setOutput((prev) => (prev || "") + event.text);
+        } else if (event.type === "done" && typeof event.output === "string") {
+          setOutput(event.output);
+          sawDone = true;
+        } else if (event.type === "error") {
+          throw new Error(event.message || "Streaming generation failed");
+        }
+      }
+    }
+
+    if (!sawDone) {
+      throw new Error("Stream ended before completion");
     }
   };
 
