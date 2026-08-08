@@ -8,6 +8,7 @@ const isPublicRoute = createRouteMatcher([
   "/share(.*)",
   "/api/webhooks(.*)",
   "/api/share(.*)",
+  "/api/health(.*)",
 ]);
 
 const isAuthOrLanding = createRouteMatcher([
