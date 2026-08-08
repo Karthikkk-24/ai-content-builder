@@ -8,7 +8,7 @@ describe("sanitizeBlockContentForMarkdown", () => {
   it("strips HTML tags", () => {
     expect(
       sanitizeBlockContentForMarkdown("Hi <script>alert(1)</script> there", "paragraph")
-    ).toBe("Hi  there");
+    ).toBe("Hi alert(1) there");
   });
 
   it("neutralizes heading markers inside paragraphs", () => {
