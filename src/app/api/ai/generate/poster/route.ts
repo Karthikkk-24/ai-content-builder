@@ -29,10 +29,16 @@ import { generations } from "@/lib/db/schema";
 import { ensureUser } from "@/lib/db/users";
 import { moderateAiImageOutput } from "@/lib/ai/moderate";
 import {
+  extractStyleFingerprint,
+  formatStyleSoftConstraints,
+  normalizeStyleFingerprint,
+} from "@/lib/ai/style-continuity";
+import {
   sanitizeGeneratedOutputForStorage,
   sanitizeReferenceImageForStorage,
   scrubProviderSecretsFromUrl,
 } from "@/lib/image-utils";
+import { assertSafeExternalImageUrl } from "@/lib/safe-url";
 import { saveImageGenerationAsProject } from "@/lib/projects-from-generation";
 import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
 
@@ -43,6 +49,8 @@ const schema = z.object({
   context: z.record(z.string(), z.string()).optional(),
   referenceImageUrl: z.string().nullable().optional(),
   remarks: z.string().optional(),
+  previousOutputUrl: z.string().nullable().optional(),
+  previousStyle: z.unknown().optional(),
 });
 
 export async function POST(req: Request) {
@@ -70,10 +78,23 @@ export async function POST(req: Request) {
       return apiError("INVALID_INPUT", "Invalid input", 400, requestId);
     }
 
-    const { prompt, context, referenceImageUrl, remarks } = parsed.data;
+    const { prompt, context, referenceImageUrl, remarks, previousOutputUrl, previousStyle } =
+      parsed.data;
     const sanitizedContext = sanitizeContext(context);
     const sanitizedPrompt = sanitizeUserInput(prompt, { maxChars: 2_000 });
-    const promptWithRemarks = appendRemarks(sanitizedPrompt, remarks);
+    let promptWithRemarks = appendRemarks(sanitizedPrompt, remarks);
+
+    const continuityStyle =
+      normalizeStyleFingerprint(previousStyle) ||
+      (previousOutputUrl &&
+      (previousOutputUrl.startsWith("data:") ||
+        assertSafeExternalImageUrl(previousOutputUrl).ok)
+        ? await extractStyleFingerprint(previousOutputUrl)
+        : null);
+
+    if (continuityStyle) {
+      promptWithRemarks = `${promptWithRemarks}\n\n${formatStyleSoftConstraints(continuityStyle)}`;
+    }
 
     let imagePrompt = promptWithRemarks;
     if (referenceImageUrl) {
@@ -110,6 +131,8 @@ export async function POST(req: Request) {
     // Never return or persist provider API keys embedded in query strings.
     const clientSafeUrl = scrubProviderSecretsFromUrl(moderatedImage.url);
     const storedOutput = sanitizeGeneratedOutputForStorage(clientSafeUrl);
+    const style =
+      (await extractStyleFingerprint(clientSafeUrl)) || continuityStyle || null;
 
     const [generation] = await db
       .insert(generations)
@@ -119,7 +142,13 @@ export async function POST(req: Request) {
         inputPrompt: sanitizedPrompt,
         outputContent: storedOutput,
         referenceImageUrl: sanitizeReferenceImageForStorage(referenceImageUrl),
-        metadata: { context: sanitizedContext, provider, remarks: remarks ?? null },
+        metadata: {
+          context: sanitizedContext,
+          provider,
+          remarks: remarks ?? null,
+          style,
+          usedPreviousStyle: Boolean(continuityStyle),
+        },
       })
       .returning({ id: generations.id });
 
@@ -139,7 +168,7 @@ export async function POST(req: Request) {
       outcome: "success",
     });
 
-    return apiSuccess({ output: clientSafeUrl }, requestId);
+    return apiSuccess({ output: clientSafeUrl, style }, requestId);
   } catch (error) {
     console.error("Poster generation error:", error);
     return apiError("AI_FAILED", formatAiError(error), 500, requestId);
