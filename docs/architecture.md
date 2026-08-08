@@ -160,4 +160,14 @@ Signed-in users hitting landing/auth routes redirect to `/dashboard`.
 6. Settings: save preferences, export JSON, custom avatar.
 7. Account delete confirmation removes Clerk user + cascaded rows.
 
-Automated coverage today: Vitest unit suite (`npm test` / `npm run test:coverage`) plus CI workflow `.github/workflows/ci.yml`.
+Automated coverage today: Vitest unit suite (`npm test` / `npm run test:coverage`) plus Playwright E2E (`npm run test:e2e`) and CI workflow `.github/workflows/ci.yml`.
+
+### Playwright E2E
+
+- `e2e/public.spec.ts` — health live, landing, sign-in shell, share 404 (no secrets required beyond app boot env).
+- `e2e/generation.spec.ts` — Clerk sign-in + mocked AI/project APIs for photo regenerate, builder save, prompt upgrade. Requires `E2E_CLERK_USER_EMAIL` and `E2E_CLERK_USER_PASSWORD`.
+
+```bash
+npx playwright install chromium
+npm run test:e2e
+```
