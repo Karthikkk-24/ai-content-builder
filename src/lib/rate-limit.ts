@@ -1,4 +1,5 @@
 import { getRedis, isRedisConfigured } from "@/lib/redis";
+import { apiError, logSecurityEvent } from "@/lib/api/response";
 
 /**
  * Rate limiting.
@@ -145,25 +146,30 @@ export async function checkRateLimit(
 
 export function rateLimitResponse(
   retryAfterSeconds: number,
-  requestId?: string
+  requestId?: string,
+  userId?: string | null
 ) {
-  return Response.json(
-    {
-      error: {
-        code: "RATE_LIMITED",
-        message:
-          retryAfterSeconds > 0
-            ? `Rate limit exceeded. Try again in ${retryAfterSeconds} seconds.`
-            : "Rate limit exceeded. Please wait a moment and try again.",
-        request_id: requestId ?? "req_ratelimit",
-      },
-    },
-    {
-      status: 429,
-      headers: {
-        "Retry-After": String(Math.max(1, retryAfterSeconds)),
-        ...(requestId ? { "x-request-id": requestId } : {}),
-      },
-    }
-  );
+  const id = requestId ?? "req_ratelimit";
+  const message =
+    retryAfterSeconds > 0
+      ? `Rate limit exceeded. Try again in ${retryAfterSeconds} seconds.`
+      : "Rate limit exceeded. Please wait a moment and try again.";
+
+  logSecurityEvent({
+    type: "rate_limit",
+    requestId: id,
+    userId,
+    action: "rate_limit",
+    reason: message,
+    status: 429,
+    detail: `retry_after=${Math.max(1, retryAfterSeconds)}`,
+  });
+
+  const response = apiError("RATE_LIMITED", message, 429, id, {
+    userId,
+    action: "rate_limit",
+    skipLog: true,
+  });
+  response.headers.set("Retry-After", String(Math.max(1, retryAfterSeconds)));
+  return response;
 }

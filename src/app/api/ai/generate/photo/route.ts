@@ -50,12 +50,12 @@ export async function POST(req: Request) {
   try {
     const { userId } = await auth();
     if (!userId) {
-      return apiError("UNAUTHORIZED", "Unauthorized", 401, requestId);
+      return apiError("UNAUTHORIZED", "Unauthorized", 401, requestId, { action: "auth" });
     }
 
     const rateLimit = await checkRateLimit(userId, "photo");
     if (!rateLimit.allowed) {
-      return rateLimitResponse(rateLimit.retryAfterSeconds, requestId);
+      return rateLimitResponse(rateLimit.retryAfterSeconds, requestId, userId);
     }
 
     await ensureUser(userId);
