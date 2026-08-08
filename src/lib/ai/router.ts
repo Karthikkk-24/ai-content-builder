@@ -84,6 +84,14 @@ function isRetryableGroqError(error: unknown) {
   return /rate limit|timeout|network|temporarily/i.test(message);
 }
 
+/** Exported for unit tests of retry classification. */
+export const __retryHelpers = {
+  isRetryableGeminiError,
+  isRetryableGroqError,
+  GEMINI_RETRY_DELAYS_MS,
+  GEMINI_MAX_ATTEMPTS,
+};
+
 function getGroqClient() {
   if (!process.env.GROQ_API_KEY) {
     return null;
