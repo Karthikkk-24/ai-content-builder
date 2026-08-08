@@ -1,4 +1,5 @@
 import {
+  boolean,
   jsonb,
   pgTable,
   text,
@@ -26,6 +27,8 @@ export const contentProjects = pgTable("content_projects", {
   generationId: uuid("generation_id").references(() => generations.id, {
     onDelete: "set null",
   }),
+  /** When true, the project is readable at /share/[id] without auth. */
+  isPublic: boolean("is_public").notNull().default(false),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });

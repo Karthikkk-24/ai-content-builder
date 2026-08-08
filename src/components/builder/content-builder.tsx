@@ -6,6 +6,7 @@ import {
   AlignLeft,
   Heading1,
   Image as ImageIcon,
+  Link2,
   Minus,
   MousePointerClick,
   Plus,
@@ -34,20 +35,25 @@ interface ContentBuilderProps {
   projectId?: string;
   initialTitle?: string;
   initialBlocks?: ContentBlock[];
+  initialIsPublic?: boolean;
 }
 
 export function ContentBuilder({
   projectId,
   initialTitle = "Untitled",
   initialBlocks = [],
+  initialIsPublic = false,
 }: ContentBuilderProps) {
   const router = useRouter();
   const [title, setTitle] = useState(initialTitle);
   const [blocks, setBlocks] = useState<ContentBlock[]>(initialBlocks);
+  const [isPublic, setIsPublic] = useState(initialIsPublic);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [publishing, setPublishing] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [shareNotice, setShareNotice] = useState<string | null>(null);
 
   const addBlock = (type: ContentBlock["type"]) => {
     const newBlock: ContentBlock = {
@@ -126,6 +132,47 @@ export function ContentBuilder({
     }
   }, [projectId, router]);
 
+  const handlePublishToggle = useCallback(async () => {
+    if (!projectId) {
+      setSaveError("Save the project before publishing a share link.");
+      return;
+    }
+
+    setPublishing(true);
+    setSaveError(null);
+    setShareNotice(null);
+
+    try {
+      const nextPublic = !isPublic;
+      const response = await fetch(`/api/projects/${projectId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title,
+          blocks,
+          isPublic: nextPublic,
+        }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(getApiErrorMessage(data, "Failed to update share settings"));
+      }
+
+      setIsPublic(nextPublic);
+      if (nextPublic) {
+        const shareUrl = `${window.location.origin}/share/${projectId}`;
+        await navigator.clipboard.writeText(shareUrl);
+        setShareNotice(`Published. Share link copied: ${shareUrl}`);
+      } else {
+        setShareNotice("Project is now private.");
+      }
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : "Failed to publish");
+    } finally {
+      setPublishing(false);
+    }
+  }, [projectId, isPublic, title, blocks]);
+
   const handleExport = () => {
     const md = blocksToMarkdown(blocks);
     const blob = new Blob([md], { type: "text/markdown" });
@@ -164,6 +211,21 @@ export function ContentBuilder({
             <Button
               variant="outline"
               size="sm"
+              onClick={handlePublishToggle}
+              disabled={publishing}
+            >
+              <Link2 className="h-3.5 w-3.5" strokeWidth={1.5} />
+              {publishing
+                ? "Updating..."
+                : isPublic
+                  ? "Unpublish"
+                  : "Publish"}
+            </Button>
+          )}
+          {projectId && (
+            <Button
+              variant="outline"
+              size="sm"
               onClick={handleDelete}
               disabled={deleting}
             >
@@ -177,6 +239,12 @@ export function ContentBuilder({
           </Button>
         </div>
       </div>
+
+      {shareNotice && (
+        <div className="rounded-md border border-zinc-200 bg-zinc-50 p-3 text-sm text-zinc-700">
+          {shareNotice}
+        </div>
+      )}
 
       {saveError && (
         <div className="rounded-md border border-zinc-200 bg-zinc-50 p-3 text-sm text-zinc-600">
