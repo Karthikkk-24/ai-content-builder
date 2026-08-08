@@ -24,6 +24,11 @@ A full-stack Next.js application for building content and generating AI-powered 
 - Upstash Redis (caching, rate limits, session metadata)
 - Framer Motion (sidebar animations)
 
+## Documentation
+
+- [Architecture](./docs/architecture.md) — data model, AI fallback tree, rate limits, webhooks, cache, health
+- [Operator manual](./docs/operator-manual.md) — key rotation, Redis flush, outage recovery, migrations
+
 ## Getting Started
 
 ### 1. Install dependencies
