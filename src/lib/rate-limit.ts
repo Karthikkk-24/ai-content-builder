@@ -34,6 +34,22 @@ const ROUTE_RULES: Record<string, { maxRequests: number }> = {
   default: { maxRequests: 20 },
 };
 
+/** Seconds in the sliding rate-limit window (not a daily quota). */
+export const RATE_LIMIT_WINDOW_SECONDS = WINDOW_SECONDS;
+
+/** Base free-tier caps exposed for accurate Settings/docs copy. */
+export function getRateLimitRulesSummary(): Array<{
+  route: string;
+  maxRequests: number;
+  windowSeconds: number;
+}> {
+  return Object.entries(ROUTE_RULES).map(([route, rule]) => ({
+    route,
+    maxRequests: rule.maxRequests,
+    windowSeconds: WINDOW_SECONDS,
+  }));
+}
+
 export const USER_TIERS = ["free", "pro", "enterprise"] as const;
 export type UserTier = (typeof USER_TIERS)[number];
 
