@@ -133,7 +133,9 @@ Prompts are built in `src/lib/ai/prompts/prompt-upgrade.ts` and sanitized via `s
 | `user:profile:{id}` | 15 min |
 | `dashboard:stats:{id}` | 2 min |
 | `user:generations:{id}` / `:{limit}` | 2 min |
-| `session:active:{id}` | 30 days |
+| `session:active:{id}` | `clerkConfig.sessionMaxAgeDays` (30 days) |
+
+Written by `touchUserSession` (ensure-user, profile resolve, heartbeat). Read by `getUserSessionActivity` / `getSessionStatus` and `GET`/`POST` `/api/session/heartbeat` (`activeAt`, `isActive`, `maxAgeDays`).
 
 `invalidateUserCache(userId)` clears dashboard + generation list keys (limits 20 and 50). Profile/synced/session are cleared selectively by callers (e.g. preferences update).
 

@@ -57,11 +57,11 @@ Upstash REST:
 # user:generations:{userId}:50
 # user:profile:{userId}
 # user:synced:{userId}
-# session:active:{userId}
+# session:active:{userId}  — last activity JSON { activeAt }; TTL = sessionMaxAgeDays
 # ratelimit:{userId}:{route}
 ```
 
-Application helper: `invalidateUserCache(userId)` in `src/lib/cache.ts` clears dashboard + generation keys after writes.
+Inspect a user’s Redis session stamp via authenticated `GET /api/session/heartbeat` (`activeAt`, `isActive`, `maxAgeDays`). Application helper: `invalidateUserCache(userId)` in `src/lib/cache.ts` clears dashboard + generation keys after writes.
 
 If Redis is misconfigured in production, rate limiting **fail-closes** (requests denied). Fix env (`UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN`) immediately; the UI shows a banner when Redis is missing in production (`AppShell`).
 
