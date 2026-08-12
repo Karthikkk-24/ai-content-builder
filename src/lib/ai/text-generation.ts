@@ -147,13 +147,15 @@ async function persistTextGeneration({
     .returning({ id: generations.id });
 
   await invalidateUserCache(userId);
-  await saveTextGenerationAsProject({
+  const projectId = await saveTextGenerationAsProject({
     userId,
     type: generationType,
     prompt: sanitizedPrompt,
     output: processedText,
     generationId: generation.id,
   });
+
+  return { generationId: generation.id, projectId };
 }
 
 function postProcessText(text: string, generationType: string) {
@@ -190,7 +192,12 @@ export async function generateAndPersistText({
   context?: TextGenerationContext;
   remarks?: string;
   referenceImageUrl?: string | null;
-}): Promise<{ text: string; provider: string; generationType: string }> {
+}): Promise<{
+  text: string;
+  provider: string;
+  generationType: string;
+  projectId: string;
+}> {
   const prepared = await preparePrompt({
     prompt,
     context,
@@ -208,7 +215,7 @@ export async function generateAndPersistText({
     prepared.generationType
   );
 
-  await persistTextGeneration({
+  const { projectId } = await persistTextGeneration({
     userId,
     generationType: prepared.generationType,
     sanitizedPrompt: prepared.sanitizedPrompt,
@@ -225,6 +232,7 @@ export async function generateAndPersistText({
     text: processedText,
     provider,
     generationType: prepared.generationType,
+    projectId,
   };
 }
 
@@ -289,7 +297,7 @@ export async function streamAndPersistTextResponse({
           prepared.generationType
         );
 
-        await persistTextGeneration({
+        const { projectId } = await persistTextGeneration({
           userId,
           generationType: prepared.generationType,
           sanitizedPrompt: prepared.sanitizedPrompt,
@@ -306,6 +314,7 @@ export async function streamAndPersistTextResponse({
           type: "done",
           output: processedText,
           provider: streamResult.provider,
+          projectId,
         });
         controller.close();
       } catch (error) {

@@ -155,7 +155,7 @@ export async function POST(req: Request) {
       .returning({ id: generations.id });
 
     await invalidateUserCache(userId);
-    await saveImageGenerationAsProject({
+    const projectId = await saveImageGenerationAsProject({
       userId,
       type: "photo",
       prompt: sanitizedPrompt,
@@ -170,7 +170,7 @@ export async function POST(req: Request) {
       outcome: "success",
     });
 
-    return apiSuccess({ output: clientSafeUrl, style }, requestId);
+    return apiSuccess({ output: clientSafeUrl, style, projectId }, requestId);
   } catch (error) {
     console.error("Photo generation error:", error);
     return apiError("AI_FAILED", formatAiError(error), 500, requestId);

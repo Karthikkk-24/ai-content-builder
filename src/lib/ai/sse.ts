@@ -1,6 +1,6 @@
 export type SseEvent =
   | { type: "delta"; text: string }
-  | { type: "done"; output: string; provider: string }
+  | { type: "done"; output: string; provider: string; projectId?: string }
   | { type: "error"; message: string };
 
 export function encodeSse(event: SseEvent): string {
