@@ -18,16 +18,15 @@ export const appContentSecurityPolicy = {
       "https://*.uploadthing.com",
       "https://image.pollinations.ai",
       "https://*.pollinations.ai",
-    ],
+    ] as string[],
     "connect-src": [
       "https://uploadthing.com",
       "https://*.uploadthing.com",
       "https://*.ufs.sh",
       "https://utfs.io",
-    ],
-    "object-src": ["none"],
-    "base-uri": ["self"],
-    "frame-ancestors": ["none"],
+    ] as string[],
+    "object-src": ["none"] as string[],
+    "base-uri": ["self"] as string[],
+    "frame-ancestors": ["none"] as string[],
   },
-} as const;
-
+};
