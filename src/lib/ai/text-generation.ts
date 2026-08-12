@@ -19,7 +19,10 @@ import { createSseResponse, encodeSse } from "@/lib/ai/sse";
 import { invalidateUserCache } from "@/lib/cache";
 import { db } from "@/lib/db";
 import { generations } from "@/lib/db/schema";
-import { saveTextGenerationAsProject } from "@/lib/projects-from-generation";
+import {
+  saveTextGenerationAsProject,
+  withGenerationProjectRollback,
+} from "@/lib/projects-from-generation";
 
 export type TextGenerationContext = Record<string, string>;
 
@@ -147,13 +150,18 @@ async function persistTextGeneration({
     .returning({ id: generations.id });
 
   await invalidateUserCache(userId);
-  const projectId = await saveTextGenerationAsProject({
+  const projectId = await withGenerationProjectRollback(
+    generation.id,
     userId,
-    type: generationType,
-    prompt: sanitizedPrompt,
-    output: processedText,
-    generationId: generation.id,
-  });
+    () =>
+      saveTextGenerationAsProject({
+        userId,
+        type: generationType,
+        prompt: sanitizedPrompt,
+        output: processedText,
+        generationId: generation.id,
+      })
+  );
 
   return { generationId: generation.id, projectId };
 }

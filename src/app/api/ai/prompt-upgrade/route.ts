@@ -28,7 +28,10 @@ import { db } from "@/lib/db";
 import { generations } from "@/lib/db/schema";
 import { ensureUser } from "@/lib/db/users";
 import { sanitizeReferenceImageForStorage } from "@/lib/image-utils";
-import { saveTextGenerationAsProject } from "@/lib/projects-from-generation";
+import {
+  saveTextGenerationAsProject,
+  withGenerationProjectRollback,
+} from "@/lib/projects-from-generation";
 import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
 import {
   aiContextSchema,
@@ -129,13 +132,15 @@ export async function POST(req: Request) {
 
     await invalidateUserCache(userId);
     if (!regenerate) {
-      await saveTextGenerationAsProject({
-        userId,
-        type: "prompt_upgrade",
-        prompt: sanitizedPrompt,
-        output: moderated.text,
-        generationId: generation.id,
-      });
+      await withGenerationProjectRollback(generation.id, userId, () =>
+        saveTextGenerationAsProject({
+          userId,
+          type: "prompt_upgrade",
+          prompt: sanitizedPrompt,
+          output: moderated.text,
+          generationId: generation.id,
+        })
+      );
     }
 
     logAction({

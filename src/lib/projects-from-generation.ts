@@ -8,6 +8,35 @@ import { sanitizeBlockContentForMarkdown } from "@/lib/markdown-export";
 
 const MAX_TITLE_LENGTH = 60;
 
+/**
+ * neon-http has no Drizzle transactions. If project creation fails after a
+ * generation insert, delete the generation so clients don't see orphan history.
+ */
+export async function withGenerationProjectRollback<T>(
+  generationId: string,
+  userId: string,
+  work: () => Promise<T>
+): Promise<T> {
+  try {
+    return await work();
+  } catch (error) {
+    try {
+      await db
+        .delete(generations)
+        .where(
+          and(eq(generations.id, generationId), eq(generations.userId, userId))
+        );
+      await invalidateUserCache(userId);
+    } catch (rollbackError) {
+      console.error(
+        "Failed to roll back generation after project save failure:",
+        rollbackError
+      );
+    }
+    throw error;
+  }
+}
+
 function buildTitle(prompt: string, type: string): string {
   const trimmed = prompt.trim();
   if (!trimmed) return `${type} draft`;
