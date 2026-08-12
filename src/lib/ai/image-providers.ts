@@ -1,4 +1,5 @@
 import { scrubProviderSecretsFromUrl } from "@/lib/image-utils";
+import { sanitizeUserInput } from "@/lib/ai/sanitize";
 
 export type ImageProviderName =
   | "openai"
@@ -10,6 +11,19 @@ export type ImageGenerationResult = {
   imageUrl: string;
   provider: ImageProviderName;
 };
+
+/** Cap for prompts sent to any image provider (URL length / token spend). */
+export const MAX_IMAGE_PROVIDER_PROMPT_CHARS = 4_000;
+
+/**
+ * Sanitize model- or user-derived text before forwarding to image providers
+ * (Pollinations URL, OpenAI, etc.). Treats LLM output as untrusted input.
+ */
+export function prepareImageProviderPrompt(raw: string): string {
+  return sanitizeUserInput(raw, {
+    maxChars: MAX_IMAGE_PROVIDER_PROMPT_CHARS,
+  }).trim();
+}
 
 const IMAGE_FETCH_TIMEOUT_MS = 45_000;
 
@@ -370,21 +384,34 @@ export async function generateImageWithRouter({
   width?: number;
   height?: number;
 }): Promise<ImageGenerationResult> {
+  const safePrompt = prepareImageProviderPrompt(prompt);
+  if (!safePrompt) {
+    throw new Error("Image prompt is empty after sanitization");
+  }
+
   const errors: Error[] = [];
   const order = getImageProviderOrder();
 
   for (const provider of order) {
     try {
       if (provider === "openai") {
-        return await generateWithOpenAI({ prompt, width, height });
+        return await generateWithOpenAI({ prompt: safePrompt, width, height });
       }
       if (provider === "recraft") {
-        return await generateWithRecraft({ prompt, width, height });
+        return await generateWithRecraft({ prompt: safePrompt, width, height });
       }
       if (provider === "stability") {
-        return await generateWithStability({ prompt, width, height });
+        return await generateWithStability({
+          prompt: safePrompt,
+          width,
+          height,
+        });
       }
-      return await generateWithPollinations({ prompt, width, height });
+      return await generateWithPollinations({
+        prompt: safePrompt,
+        width,
+        height,
+      });
     } catch (error) {
       errors.push(error instanceof Error ? error : new Error(String(error)));
       console.warn(`Image provider ${provider} failed:`, error);
