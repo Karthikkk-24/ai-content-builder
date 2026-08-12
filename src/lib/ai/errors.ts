@@ -18,6 +18,13 @@ const MODEL_PATTERNS = [
   /not supported/i,
 ];
 
+const GENERIC_AI_FAILURE =
+  "AI generation failed. Please try again shortly.";
+
+/**
+ * Map provider errors to safe, user-facing messages.
+ * Never return raw provider/stack text to API clients.
+ */
 export function formatAiError(error: unknown): string {
   const message =
     error instanceof Error ? error.message : "AI generation failed. Please try again.";
@@ -41,5 +48,6 @@ export function formatAiError(error: unknown): string {
     return "All AI providers failed after retries. Check your API keys in .env.local and try again.";
   }
 
-  return message;
+  // Unknown provider/internal messages stay on the server (callers should log `error`).
+  return GENERIC_AI_FAILURE;
 }
