@@ -1,5 +1,9 @@
 import type { NextConfig } from "next";
 
+/**
+ * Static security headers. Content-Security-Policy is set per-request by
+ * `clerkMiddleware` via `src/lib/csp.ts` (Clerk FAPI + Uploadthing + Pollinations).
+ */
 const securityHeaders = [
   {
     key: "X-Frame-Options",
