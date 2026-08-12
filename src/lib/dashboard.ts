@@ -100,6 +100,6 @@ async function fetchGenerations(userId: string, limit: number) {
       .limit(limit);
   } catch (error) {
     console.error("Failed to load generations:", error);
-    return [];
+    throw new Error("Failed to load generations");
   }
 }
