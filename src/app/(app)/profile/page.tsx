@@ -17,11 +17,19 @@ export default async function ProfilePage() {
   if (!userId) return null;
 
   await ensureUser(userId);
-  const [profile, userGenerations, preferences] = await Promise.all([
+  const [profile, preferences] = await Promise.all([
     resolveUserProfile(),
-    getCachedGenerations(userId, 20),
     getUserPreferences(userId),
   ]);
+
+  let userGenerations: Awaited<ReturnType<typeof getCachedGenerations>> = [];
+  let generationsError: string | null = null;
+  try {
+    userGenerations = await getCachedGenerations(userId, 20);
+  } catch {
+    generationsError =
+      "Couldn't load generation history right now. Refresh to try again.";
+  }
 
   return (
     <div className="space-y-8">
@@ -87,7 +95,14 @@ export default async function ProfilePage() {
         <h2 className="mb-4 text-lg font-semibold text-zinc-900">
           Generation History
         </h2>
-        {userGenerations.length === 0 ? (
+        {generationsError ? (
+          <div
+            role="alert"
+            className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"
+          >
+            {generationsError}
+          </div>
+        ) : userGenerations.length === 0 ? (
           <Card>
             <CardContent className="py-8 text-center text-sm text-zinc-500">
               No generations yet.
