@@ -74,12 +74,7 @@ export async function getDashboardStats(
     return stats;
   } catch (error) {
     console.error("Failed to load dashboard stats:", error);
-    return {
-      totalGenerations: 0,
-      totalProjects: 0,
-      weekGenerations: 0,
-      recent: [],
-    };
+    throw new Error("Failed to load dashboard stats");
   }
 }
 

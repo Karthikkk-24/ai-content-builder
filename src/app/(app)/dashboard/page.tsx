@@ -34,12 +34,27 @@ const quickActions = [
 
 export default async function DashboardPage() {
   const { userId } = await auth();
-  const stats = userId
-    ? await getDashboardStats(userId)
-    : { totalGenerations: 0, totalProjects: 0, weekGenerations: 0, recent: [] };
+  let stats = {
+    totalGenerations: 0,
+    totalProjects: 0,
+    weekGenerations: 0,
+    recent: [] as Awaited<ReturnType<typeof getDashboardStats>>["recent"],
+  };
+  let statsError: string | null = null;
+
+  if (userId) {
+    try {
+      stats = await getDashboardStats(userId);
+    } catch {
+      statsError =
+        "Couldn't load dashboard stats right now. Refresh to try again.";
+    }
+  }
 
   const isFirstRun =
-    stats.totalGenerations === 0 && stats.totalProjects === 0;
+    !statsError &&
+    stats.totalGenerations === 0 &&
+    stats.totalProjects === 0;
 
   const checklist = ONBOARDING_STEPS.map((step) => {
     const done =
@@ -58,6 +73,15 @@ export default async function DashboardPage() {
           Overview of your content and AI generations
         </p>
       </div>
+
+      {statsError && (
+        <div
+          role="alert"
+          className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"
+        >
+          {statsError}
+        </div>
+      )}
 
       {isFirstRun && (
         <Card className="border-zinc-900/10 bg-white">
