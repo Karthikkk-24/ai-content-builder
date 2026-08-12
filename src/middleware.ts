@@ -12,10 +12,20 @@ const isPublicRoute = createRouteMatcher([
   "/api/health(.*)",
 ]);
 
+/** Marketing/auth entry pages — signed-in users go to the dashboard. */
 const isAuthOrLanding = createRouteMatcher([
   "/",
   "/sign-in(.*)",
   "/sign-up(.*)",
+]);
+
+/**
+ * Clerk OAuth return paths must run even when a session already exists
+ * (account switch / linking). Do not redirect these to /dashboard.
+ */
+const isClerkSsoCallback = createRouteMatcher([
+  "/sign-in/sso-callback(.*)",
+  "/sign-up/sso-callback(.*)",
 ]);
 
 export default clerkMiddleware(
@@ -23,7 +33,7 @@ export default clerkMiddleware(
     const { userId } = await auth();
     const dashboardUrl = new URL("/dashboard", req.url);
 
-    if (userId && isAuthOrLanding(req)) {
+    if (userId && isAuthOrLanding(req) && !isClerkSsoCallback(req)) {
       return NextResponse.redirect(dashboardUrl);
     }
 
