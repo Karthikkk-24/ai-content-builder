@@ -7,6 +7,8 @@ import {
   logAction,
   logSecurityEvent,
 } from "@/lib/api/response";
+import { invalidateUserCache } from "@/lib/cache";
+import { resolveClerkPrimaryEmail } from "@/lib/clerk-email";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
 
@@ -87,8 +89,18 @@ export async function POST(req: Request) {
 
   try {
     if (evt.type === "user.created" || evt.type === "user.updated") {
-      const { id, email_addresses, first_name, last_name, image_url } = evt.data;
-      const email = email_addresses?.[0]?.email_address || "";
+      const {
+        id,
+        email_addresses,
+        primary_email_address_id,
+        first_name,
+        last_name,
+        image_url,
+      } = evt.data;
+      const email = resolveClerkPrimaryEmail(
+        email_addresses,
+        primary_email_address_id
+      );
       const name = [first_name, last_name].filter(Boolean).join(" ") || null;
 
       await db
@@ -104,6 +116,8 @@ export async function POST(req: Request) {
           set: { email, name, avatarUrl: image_url },
         });
 
+      await invalidateUserCache(id);
+
       logAction({
         requestId,
         action: `clerk.${evt.type}`,
@@ -116,6 +130,7 @@ export async function POST(req: Request) {
       if (id) {
         // Cascades to projects, generations, and reference_images via FKs.
         await db.delete(users).where(eq(users.id, id));
+        await invalidateUserCache(id);
         logAction({
           requestId,
           action: "clerk.user.deleted",

@@ -59,5 +59,12 @@ export async function invalidateUserCache(userId: string) {
     generationsCacheKey(userId, limit)
   );
 
-  await cacheDel(keys.dashboard, keys.generations, ...generationKeys);
+  await cacheDel(
+    keys.dashboard,
+    keys.generations,
+    keys.profile,
+    keys.synced,
+    keys.session,
+    ...generationKeys
+  );
 }
