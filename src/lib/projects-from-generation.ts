@@ -31,7 +31,7 @@ export async function saveTextGenerationAsProject({
   prompt: string;
   output: string;
   generationId?: string;
-}): Promise<void> {
+}): Promise<string> {
   const blocks: ContentBlock[] = [
     {
       id: randomUUID(),
@@ -49,14 +49,18 @@ export async function saveTextGenerationAsProject({
     },
   ];
 
-  await db.insert(contentProjects).values({
-    userId,
-    title: buildTitle(prompt, type),
-    blocks,
-    ...(generationId ? { generationId } : {}),
-  });
+  const [project] = await db
+    .insert(contentProjects)
+    .values({
+      userId,
+      title: buildTitle(prompt, type),
+      blocks,
+      ...(generationId ? { generationId } : {}),
+    })
+    .returning({ id: contentProjects.id });
 
   await invalidateUserCache(userId);
+  return project.id;
 }
 
 export async function saveImageGenerationAsProject({
@@ -71,7 +75,7 @@ export async function saveImageGenerationAsProject({
   prompt: string;
   imageUrl: string;
   generationId?: string;
-}): Promise<void> {
+}): Promise<string> {
   const blocks: ContentBlock[] = [
     {
       id: randomUUID(),
@@ -95,14 +99,18 @@ export async function saveImageGenerationAsProject({
     },
   ];
 
-  await db.insert(contentProjects).values({
-    userId,
-    title: buildTitle(prompt, type),
-    blocks,
-    ...(generationId ? { generationId } : {}),
-  });
+  const [project] = await db
+    .insert(contentProjects)
+    .values({
+      userId,
+      title: buildTitle(prompt, type),
+      blocks,
+      ...(generationId ? { generationId } : {}),
+    })
+    .returning({ id: contentProjects.id });
 
   await invalidateUserCache(userId);
+  return project.id;
 }
 
 export async function syncGenerationsToProjects(userId: string): Promise<number> {

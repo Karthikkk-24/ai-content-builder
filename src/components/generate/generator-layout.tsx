@@ -1,8 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Copy, Download, Loader2, RefreshCw, Sparkles } from "lucide-react";
+import {
+  Copy,
+  Download,
+  ExternalLink,
+  Loader2,
+  RefreshCw,
+  Sparkles,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -52,6 +60,7 @@ export function GeneratorLayout({
   const [referenceImage, setReferenceImage] = useState<string | null>(null);
   const [remarks, setRemarks] = useState("");
   const [output, setOutput] = useState<string | null>(null);
+  const [projectId, setProjectId] = useState<string | null>(null);
   const [previousOutput, setPreviousOutput] = useState<string | null>(null);
   const [styleFingerprint, setStyleFingerprint] = useState<unknown>(null);
   const [loading, setLoading] = useState(false);
@@ -109,6 +118,7 @@ export function GeneratorLayout({
     setError(null);
     if (!regenerate) {
       setOutput(null);
+      setProjectId(null);
       setPreviousOutput(null);
       setStyleFingerprint(null);
       setRemarks("");
@@ -155,6 +165,9 @@ export function GeneratorLayout({
         throw new Error(getApiErrorMessage(data, "Generation failed"));
       }
       setOutput(data.output);
+      if (typeof data.projectId === "string" && data.projectId) {
+        setProjectId(data.projectId);
+      }
       if (outputType === "image" && data.style) {
         setStyleFingerprint(data.style);
       }
@@ -185,6 +198,9 @@ export function GeneratorLayout({
       }
       if (data?.output) {
         setOutput(data.output);
+        if (typeof data.projectId === "string" && data.projectId) {
+          setProjectId(data.projectId);
+        }
         return;
       }
       throw new Error("Streaming response was not available");
@@ -217,6 +233,7 @@ export function GeneratorLayout({
           type: string;
           text?: string;
           output?: string;
+          projectId?: string;
           message?: string;
         };
         try {
@@ -229,6 +246,9 @@ export function GeneratorLayout({
           setOutput((prev) => (prev || "") + event.text);
         } else if (event.type === "done" && typeof event.output === "string") {
           setOutput(event.output);
+          if (typeof event.projectId === "string" && event.projectId) {
+            setProjectId(event.projectId);
+          }
           sawDone = true;
         } else if (event.type === "error") {
           throw new Error(event.message || "Streaming generation failed");
@@ -436,6 +456,14 @@ export function GeneratorLayout({
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-base">Output</CardTitle>
             <div className="flex gap-2">
+              {projectId && (
+                <Link href={`/builder/${projectId}`}>
+                  <Button variant="outline" size="sm" type="button">
+                    <ExternalLink className="h-3.5 w-3.5" strokeWidth={1.5} />
+                    Open in Builder
+                  </Button>
+                </Link>
+              )}
               <Button variant="outline" size="sm" onClick={handleCopy}>
                 <Copy className="h-3.5 w-3.5" strokeWidth={1.5} />
                 {copied ? "Copied" : "Copy"}

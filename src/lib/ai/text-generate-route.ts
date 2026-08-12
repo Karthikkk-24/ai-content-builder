@@ -114,7 +114,7 @@ export async function handleTextGeneratePost(
       }
     }
 
-    const { text, generationType } = await generateAndPersistText({
+    const { text, generationType, projectId } = await generateAndPersistText({
       userId,
       prompt,
       context: mergedContext,
@@ -130,7 +130,7 @@ export async function handleTextGeneratePost(
       resource: generationType,
     });
 
-    return apiSuccess({ output: text }, requestId);
+    return apiSuccess({ output: text, projectId }, requestId);
   } catch (error) {
     console.error("Text generation error:", error);
     return apiError("AI_FAILED", formatAiError(error), 500, requestId);

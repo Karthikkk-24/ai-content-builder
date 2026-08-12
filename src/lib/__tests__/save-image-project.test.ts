@@ -6,7 +6,12 @@ const invalidateUserCache = vi.fn();
 vi.mock("@/lib/db", () => ({
   db: {
     insert: () => ({
-      values: insertValues,
+      values: (...args: unknown[]) => {
+        insertValues(...args);
+        return {
+          returning: async () => [{ id: "proj_test_1" }],
+        };
+      },
     }),
   },
 }));
@@ -27,7 +32,6 @@ describe("saveImageGenerationAsProject", () => {
   beforeEach(() => {
     insertValues.mockReset();
     invalidateUserCache.mockReset();
-    insertValues.mockResolvedValue(undefined);
     invalidateUserCache.mockResolvedValue(undefined);
   });
 
