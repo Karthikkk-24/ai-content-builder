@@ -40,7 +40,10 @@ import {
   scrubProviderSecretsFromUrl,
 } from "@/lib/image-utils";
 import { assertSafeExternalImageUrl } from "@/lib/safe-url";
-import { saveImageGenerationAsProject } from "@/lib/projects-from-generation";
+import {
+  saveImageGenerationAsProject,
+  withGenerationProjectRollback,
+} from "@/lib/projects-from-generation";
 import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
 import {
   aiContextSchema,
@@ -159,13 +162,18 @@ export async function POST(req: Request) {
       .returning({ id: generations.id });
 
     await invalidateUserCache(userId);
-    const projectId = await saveImageGenerationAsProject({
+    const projectId = await withGenerationProjectRollback(
+      generation.id,
       userId,
-      type: "poster",
-      prompt: sanitizedPrompt,
-      imageUrl: clientSafeUrl,
-      generationId: generation.id,
-    });
+      () =>
+        saveImageGenerationAsProject({
+          userId,
+          type: "poster",
+          prompt: sanitizedPrompt,
+          imageUrl: clientSafeUrl,
+          generationId: generation.id,
+        })
+    );
 
     logAction({
       requestId,
