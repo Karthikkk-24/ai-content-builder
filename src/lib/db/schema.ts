@@ -12,6 +12,11 @@ export const users = pgTable("users", {
   email: text("email").notNull(),
   name: text("name"),
   avatarUrl: text("avatar_url"),
+  /**
+   * Rate-limit / plan tier. Default `free`. Assign via SQL or a future billing
+   * webhook (`UPDATE users SET tier = 'pro' WHERE id = ...`). Not user-writable.
+   */
+  tier: text("tier").notNull().default("free"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

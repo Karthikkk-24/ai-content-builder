@@ -1,5 +1,8 @@
+import { eq } from "drizzle-orm";
 import { getRedis, isRedisConfigured } from "@/lib/redis";
 import { apiError, logSecurityEvent } from "@/lib/api/response";
+import { db } from "@/lib/db";
+import { users } from "@/lib/db/schema";
 
 /**
  * Rate limiting.
@@ -7,6 +10,9 @@ import { apiError, logSecurityEvent } from "@/lib/api/response";
  * - Per-endpoint sliding windows (text, image and prompt-upgrade routes get
  *   different buckets so cheap and expensive operations throttle
  *   independently).
+ * - Per-user plan tier multiplies the base route limit (`users.tier`:
+ *   free=1x, pro=3x, enterprise=10x). Tiers default to `free` and are
+ *   assigned out-of-band (SQL / billing) — not via a public API.
  * - Atomic check-and-record via a Lua script on Redis so concurrent
  *   requests cannot race past the limit, and a sorted-set sliding window
  *   so limit windows cannot be double-bursted at fixed-window edges.
@@ -26,6 +32,16 @@ const ROUTE_RULES: Record<string, { maxRequests: number }> = {
   poster: { maxRequests: 5 },
   "prompt-upgrade": { maxRequests: 10 },
   default: { maxRequests: 20 },
+};
+
+export const USER_TIERS = ["free", "pro", "enterprise"] as const;
+export type UserTier = (typeof USER_TIERS)[number];
+
+/** Multipliers applied to each route's base `maxRequests`. */
+export const TIER_LIMIT_MULTIPLIER: Record<UserTier, number> = {
+  free: 1,
+  pro: 3,
+  enterprise: 10,
 };
 
 export interface RateLimitResult {
@@ -72,6 +88,9 @@ const memoryWindows = new Map<string, number[]>();
 const MEMORY_WINDOW_CLEANUP_MS = 5 * 60 * 1000;
 let memoryWindowCleanupStarted = false;
 
+const tierCache = new Map<string, { tier: UserTier; expiresAt: number }>();
+const TIER_CACHE_TTL_MS = 60_000;
+
 function ensureMemoryWindowCleanup() {
   if (memoryWindowCleanupStarted || typeof setInterval === "undefined") return;
   memoryWindowCleanupStarted = true;
@@ -94,6 +113,42 @@ function ensureMemoryWindowCleanup() {
 
 function getRule(route: string): { maxRequests: number } {
   return ROUTE_RULES[route] ?? ROUTE_RULES.default;
+}
+
+export function normalizeUserTier(value: string | null | undefined): UserTier {
+  if (value === "pro" || value === "enterprise") return value;
+  return "free";
+}
+
+export function resolveRouteMaxRequests(route: string, tier: UserTier): number {
+  const base = getRule(route).maxRequests;
+  return Math.max(1, Math.floor(base * TIER_LIMIT_MULTIPLIER[tier]));
+}
+
+/**
+ * Load `users.tier` for rate-limit multipliers. Falls back to `free` if the
+ * user row is missing or the DB is unavailable (e.g. unit tests).
+ */
+export async function resolveUserRateLimitTier(
+  userId: string
+): Promise<UserTier> {
+  const cached = tierCache.get(userId);
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.tier;
+  }
+
+  try {
+    const [row] = await db
+      .select({ tier: users.tier })
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1);
+    const tier = normalizeUserTier(row?.tier);
+    tierCache.set(userId, { tier, expiresAt: Date.now() + TIER_CACHE_TTL_MS });
+    return tier;
+  } catch {
+    return "free";
+  }
 }
 
 function memorySlidingWindow(
@@ -124,9 +179,12 @@ function memorySlidingWindow(
 
 export async function checkRateLimit(
   userId: string,
-  route: string
+  route: string,
+  options?: { tier?: UserTier }
 ): Promise<RateLimitResult> {
-  const rule = getRule(route);
+  const tier = options?.tier ?? (await resolveUserRateLimitTier(userId));
+  const maxRequests = resolveRouteMaxRequests(route, tier);
+  const rule = { maxRequests };
   const key = `ratelimit:${userId}:${route}`;
 
   if (!isRedisConfigured()) {
@@ -145,11 +203,11 @@ export async function checkRateLimit(
     const nowSeconds = Math.floor(Date.now() / 1000);
     const memberPrefix = `${nowSeconds}:${crypto.randomUUID()}`;
 
-    const [allowed, retryAfter] = await redis.eval(
+    const [allowed, retryAfter] = (await redis.eval(
       SLIDING_WINDOW_LUA,
       [key],
-      [nowSeconds, WINDOW_SECONDS, rule.maxRequests, memberPrefix]
-    ) as [number, number];
+      [nowSeconds, WINDOW_SECONDS, maxRequests, memberPrefix]
+    )) as [number, number];
 
     return {
       allowed: allowed === 1,
