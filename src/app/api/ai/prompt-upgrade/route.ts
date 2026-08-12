@@ -30,14 +30,19 @@ import { ensureUser } from "@/lib/db/users";
 import { sanitizeReferenceImageForStorage } from "@/lib/image-utils";
 import { saveTextGenerationAsProject } from "@/lib/projects-from-generation";
 import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
+import {
+  aiContextSchema,
+  aiPromptSchema,
+  aiRemarksSchema,
+} from "@/lib/ai/request-schema";
 
 export const maxDuration = 60;
 
 const schema = z.object({
-  prompt: z.string().min(1),
-  context: z.record(z.string(), z.string()).optional(),
+  prompt: aiPromptSchema,
+  context: aiContextSchema,
   referenceImageUrl: z.string().nullable().optional(),
-  remarks: z.string().optional(),
+  remarks: aiRemarksSchema,
 });
 
 export async function POST(req: Request) {

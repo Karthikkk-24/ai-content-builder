@@ -41,14 +41,19 @@ import {
 import { assertSafeExternalImageUrl } from "@/lib/safe-url";
 import { saveImageGenerationAsProject } from "@/lib/projects-from-generation";
 import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
+import {
+  aiContextSchema,
+  aiPromptSchema,
+  aiRemarksSchema,
+} from "@/lib/ai/request-schema";
 
 export const maxDuration = 60;
 
 const schema = z.object({
-  prompt: z.string().min(1),
-  context: z.record(z.string(), z.string()).optional(),
+  prompt: aiPromptSchema,
+  context: aiContextSchema,
   referenceImageUrl: z.string().nullable().optional(),
-  remarks: z.string().optional(),
+  remarks: aiRemarksSchema,
   previousOutputUrl: z.string().nullable().optional(),
   previousStyle: z.unknown().optional(),
 });

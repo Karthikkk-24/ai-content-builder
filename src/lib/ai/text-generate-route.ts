@@ -18,11 +18,16 @@ import {
 } from "@/lib/api/read-json";
 import { ensureUser } from "@/lib/db/users";
 import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
+import {
+  aiContextSchema,
+  aiPromptSchema,
+  aiRemarksSchema,
+} from "@/lib/ai/request-schema";
 
 const schema = z.object({
-  prompt: z.string().min(1),
-  context: z.record(z.string(), z.string()).optional(),
-  remarks: z.string().optional(),
+  prompt: aiPromptSchema,
+  context: aiContextSchema,
+  remarks: aiRemarksSchema,
   referenceImageUrl: z.string().nullable().optional(),
   stream: z.boolean().optional(),
 });
