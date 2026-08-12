@@ -1,5 +1,6 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
+import { appContentSecurityPolicy } from "@/lib/csp";
 
 const isPublicRoute = createRouteMatcher([
   "/",
@@ -17,22 +18,27 @@ const isAuthOrLanding = createRouteMatcher([
   "/sign-up(.*)",
 ]);
 
-export default clerkMiddleware(async (auth, req) => {
-  const { userId } = await auth();
-  const dashboardUrl = new URL("/dashboard", req.url);
+export default clerkMiddleware(
+  async (auth, req) => {
+    const { userId } = await auth();
+    const dashboardUrl = new URL("/dashboard", req.url);
 
-  if (userId && isAuthOrLanding(req)) {
-    return NextResponse.redirect(dashboardUrl);
+    if (userId && isAuthOrLanding(req)) {
+      return NextResponse.redirect(dashboardUrl);
+    }
+
+    if (!isPublicRoute(req)) {
+      await auth.protect({
+        unauthenticatedUrl: new URL("/sign-in", req.url).toString(),
+      });
+    }
+
+    return NextResponse.next();
+  },
+  {
+    contentSecurityPolicy: appContentSecurityPolicy,
   }
-
-  if (!isPublicRoute(req)) {
-    await auth.protect({
-      unauthenticatedUrl: new URL("/sign-in", req.url).toString(),
-    });
-  }
-
-  return NextResponse.next();
-});
+);
 
 export const config = {
   matcher: [
