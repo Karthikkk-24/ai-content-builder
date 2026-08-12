@@ -32,6 +32,7 @@ export default function PromptUpgradePage() {
         prompt,
         context: { generationType },
         referenceImageUrl: referenceImage,
+        regenerate,
       };
 
       if (regenerate && remarks.trim()) {
