@@ -130,38 +130,33 @@ export async function DELETE(
     await ensureUser(userId);
 
     const { id } = await params;
-    const [project] = await db
-      .select({
-        id: contentProjects.id,
-        generationId: contentProjects.generationId,
-      })
-      .from(contentProjects)
+
+    // Delete first and require a returned row so missing/foreign IDs are 404,
+    // not a false success (clears generation_id FK via ON DELETE SET NULL).
+    const [deleted] = await db
+      .delete(contentProjects)
       .where(
         and(eq(contentProjects.id, id), eq(contentProjects.userId, userId))
       )
-      .limit(1);
+      .returning({
+        id: contentProjects.id,
+        generationId: contentProjects.generationId,
+      });
 
-    if (!project) {
+    if (!deleted) {
       return apiError("NOT_FOUND", "Project not found", 404, requestId, {
         userId,
         action: "project.delete",
       });
     }
 
-    // Delete project first so the generation_id FK (ON DELETE SET NULL) is cleared.
-    await db
-      .delete(contentProjects)
-      .where(
-        and(eq(contentProjects.id, id), eq(contentProjects.userId, userId))
-      );
-
     // Erase the linked generation when present (GDPR / no orphan history).
-    if (project.generationId) {
+    if (deleted.generationId) {
       await db
         .delete(generations)
         .where(
           and(
-            eq(generations.id, project.generationId),
+            eq(generations.id, deleted.generationId),
             eq(generations.userId, userId)
           )
         );
@@ -174,8 +169,8 @@ export async function DELETE(
       userId,
       outcome: "success",
       resource: id,
-      detail: project.generationId
-        ? `deleted_generation=${project.generationId}`
+      detail: deleted.generationId
+        ? `deleted_generation=${deleted.generationId}`
         : undefined,
     });
 
