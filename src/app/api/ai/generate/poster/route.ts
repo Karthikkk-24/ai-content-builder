@@ -28,6 +28,7 @@ import { db } from "@/lib/db";
 import { generations } from "@/lib/db/schema";
 import { ensureUser } from "@/lib/db/users";
 import { moderateAiImageOutput } from "@/lib/ai/moderate";
+import { prepareImageProviderPrompt } from "@/lib/ai/image-providers";
 import {
   extractStyleFingerprint,
   formatStyleSoftConstraints,
@@ -120,7 +121,7 @@ export async function POST(req: Request) {
 
     const { width, height } = getAspectDimensions(sanitizedContext.aspectRatio || "1:1");
     const { imageUrl, provider } = await generateImage({
-      prompt: imagePrompt,
+      prompt: prepareImageProviderPrompt(imagePrompt),
       width,
       height,
     });

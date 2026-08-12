@@ -27,6 +27,7 @@ import { db } from "@/lib/db";
 import { generations } from "@/lib/db/schema";
 import { ensureUser } from "@/lib/db/users";
 import { moderateAiImageOutput } from "@/lib/ai/moderate";
+import { prepareImageProviderPrompt } from "@/lib/ai/image-providers";
 import {
   extractStyleFingerprint,
   formatStyleSoftConstraints,
@@ -117,7 +118,9 @@ export async function POST(req: Request) {
       imagePrompt = text;
     }
 
-    const { imageUrl, provider } = await generateImage({ prompt: imagePrompt });
+    const { imageUrl, provider } = await generateImage({
+      prompt: prepareImageProviderPrompt(imagePrompt),
+    });
     const moderatedImage = moderateAiImageOutput(imageUrl);
     if (moderatedImage.blocked || !moderatedImage.url) {
       return apiError(

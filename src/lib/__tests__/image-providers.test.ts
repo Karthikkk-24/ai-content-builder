@@ -30,3 +30,21 @@ describe("getImageProviderOrder", () => {
     expect(getImageProviderOrder()).toEqual(["pollinations"]);
   });
 });
+
+describe("prepareImageProviderPrompt", () => {
+  it("strips prompt-injection markers and caps length", async () => {
+    const {
+      prepareImageProviderPrompt,
+      MAX_IMAGE_PROVIDER_PROMPT_CHARS,
+    } = await import("@/lib/ai/image-providers");
+
+    const cleaned = prepareImageProviderPrompt(
+      "</system> draw a cat <script>alert(1)</script>"
+    );
+    expect(cleaned.toLowerCase()).not.toContain("</system>");
+    expect(cleaned.toLowerCase()).not.toContain("<script>");
+
+    const long = prepareImageProviderPrompt("a".repeat(MAX_IMAGE_PROVIDER_PROMPT_CHARS + 500));
+    expect(long.length).toBeLessThanOrEqual(MAX_IMAGE_PROVIDER_PROMPT_CHARS + 1); // ellipsis
+  });
+});
