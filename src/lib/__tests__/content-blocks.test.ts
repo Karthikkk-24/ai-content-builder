@@ -53,6 +53,25 @@ describe("contentBlockSchema", () => {
       }).success
     ).toBe(true);
   });
+
+  it("rejects non-allowlisted hosts on image blocks", () => {
+    expect(
+      contentBlockSchema.safeParse({
+        id: "block-1",
+        type: "image",
+        content: "alt",
+        url: "https://attacker.example/track.png",
+      }).success
+    ).toBe(false);
+    expect(
+      contentBlockSchema.safeParse({
+        id: "block-1",
+        type: "image",
+        content: "alt",
+        url: "https://image.pollinations.ai/out.jpg",
+      }).success
+    ).toBe(true);
+  });
 });
 
 describe("projectBlocksSchema", () => {
