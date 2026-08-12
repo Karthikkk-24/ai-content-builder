@@ -112,7 +112,7 @@ In Clerk Dashboard → **Sessions**:
 - Set session lifetime to **30 days**
 - Enable **multi-session** if you use multiple devices
 
-The app includes a `SessionKeeper` that refreshes your Clerk token every 5 minutes so you stay signed in.
+The app includes a `SessionKeeper` that refreshes your Clerk token every 5 minutes while the tab is visible and the user is active, and records last-activity in Redis (`session:active:{userId}`) with a TTL matching `clerkConfig.sessionMaxAgeDays` (30). `GET`/`POST` `/api/session/heartbeat` read and refresh that stamp.
 
 ### 7. Configure Uploadthing (required for reference images + generated image hosting)
 

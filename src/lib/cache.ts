@@ -1,3 +1,4 @@
+import { clerkConfig } from "@/lib/clerk-config";
 import { getRedis } from "@/lib/redis";
 
 export const CACHE_TTL = {
@@ -5,7 +6,8 @@ export const CACHE_TTL = {
   USER_PROFILE: 15 * 60,
   DASHBOARD_STATS: 2 * 60,
   GENERATIONS: 2 * 60,
-  SESSION: 30 * 24 * 60 * 60,
+  /** Aligned with `clerkConfig.sessionMaxAgeDays` (idle TTL for Redis activity keys). */
+  SESSION: clerkConfig.sessionMaxAgeDays * 24 * 60 * 60,
 } as const;
 
 export const GENERATIONS_CACHE_LIMITS = [20, 50] as const;

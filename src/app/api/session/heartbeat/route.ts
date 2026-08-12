@@ -1,19 +1,55 @@
 import { auth } from "@clerk/nextjs/server";
 import { apiError, apiSuccess, getRequestId } from "@/lib/api/response";
-import { touchUserSession } from "@/lib/session";
+import { getSessionStatus, touchUserSession } from "@/lib/session";
 
+/** Read last Redis activity stamp (does not refresh TTL). */
+export async function GET(req: Request) {
+  const requestId = getRequestId(req);
+
+  try {
+    const { userId } = await auth();
+    if (!userId) {
+      return apiError("UNAUTHORIZED", "Unauthorized", 401, requestId, {
+        action: "auth",
+      });
+    }
+
+    const status = await getSessionStatus(userId);
+    return apiSuccess(status, requestId);
+  } catch {
+    return apiError(
+      "INTERNAL_ERROR",
+      "Failed to read session status",
+      500,
+      requestId
+    );
+  }
+}
+
+/** Refresh Redis activity + TTL; keep Clerk warm via SessionKeeper's getToken(). */
 export async function POST(req: Request) {
   const requestId = getRequestId(req);
 
   try {
     const { userId } = await auth();
     if (!userId) {
-      return apiError("UNAUTHORIZED", "Unauthorized", 401, requestId, { action: "auth" });
+      return apiError("UNAUTHORIZED", "Unauthorized", 401, requestId, {
+        action: "auth",
+      });
     }
 
-    await touchUserSession(userId);
+    const activity = await touchUserSession(userId);
+    const status = await getSessionStatus(userId);
 
-    return apiSuccess({ ok: true }, requestId);
+    return apiSuccess(
+      {
+        ok: true as const,
+        activeAt: activity.activeAt,
+        maxAgeDays: status.maxAgeDays,
+        isActive: status.isActive,
+      },
+      requestId
+    );
   } catch {
     return apiError(
       "INTERNAL_ERROR",

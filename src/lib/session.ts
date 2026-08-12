@@ -5,6 +5,7 @@ import {
   cacheSet,
   userCacheKeys,
 } from "@/lib/cache";
+import { clerkConfig } from "@/lib/clerk-config";
 import { getUserPreferences } from "@/lib/preferences";
 
 export type CachedUserProfile = {
@@ -14,9 +15,56 @@ export type CachedUserProfile = {
   avatarUrl: string | null;
 };
 
-export async function touchUserSession(userId: string) {
+export type UserSessionActivity = {
+  activeAt: number;
+};
+
+export type SessionStatus = {
+  activeAt: number | null;
+  maxAgeDays: number;
+  /** True when Redis has a recent activity stamp within the configured max age. */
+  isActive: boolean;
+};
+
+export function isSessionWithinMaxAge(
+  activeAt: number,
+  now = Date.now(),
+  maxAgeMs = CACHE_TTL.SESSION * 1000
+): boolean {
+  return now - activeAt <= maxAgeMs;
+}
+
+export async function getUserSessionActivity(
+  userId: string
+): Promise<UserSessionActivity | null> {
   const keys = userCacheKeys(userId);
-  await cacheSet(keys.session, { activeAt: Date.now() }, CACHE_TTL.SESSION);
+  const stored = await cacheGet<UserSessionActivity>(keys.session);
+  if (!stored || typeof stored.activeAt !== "number") {
+    return null;
+  }
+  return stored;
+}
+
+export async function getSessionStatus(userId: string): Promise<SessionStatus> {
+  const activity = await getUserSessionActivity(userId);
+  const activeAt = activity?.activeAt ?? null;
+  const isActive =
+    activeAt !== null && isSessionWithinMaxAge(activeAt);
+
+  return {
+    activeAt,
+    maxAgeDays: clerkConfig.sessionMaxAgeDays,
+    isActive,
+  };
+}
+
+export async function touchUserSession(
+  userId: string
+): Promise<UserSessionActivity> {
+  const keys = userCacheKeys(userId);
+  const activity: UserSessionActivity = { activeAt: Date.now() };
+  await cacheSet(keys.session, activity, CACHE_TTL.SESSION);
+  return activity;
 }
 
 export async function getCachedUserProfile(
