@@ -106,4 +106,40 @@ describe("generateImage secret handling", () => {
       "https://image.pollinations.ai/out.jpg?seed=1"
     );
   });
+
+  it("never returns a Pollinations URL that embeds the prompt", async () => {
+    delete process.env.POLLINATIONS_API_KEY;
+    const secretPhrase = "unique-secret-phrase-xyz";
+
+    global.fetch = vi.fn(async () => {
+      const bytes = new Uint8Array([0xff, 0xd8, 0xff, 0xd9]);
+      return new Response(bytes, {
+        status: 200,
+        headers: { "content-type": "image/jpeg" },
+      });
+    }) as typeof fetch;
+
+    const { generateImage } = await import("@/lib/ai/router");
+    const result = await generateImage({ prompt: secretPhrase });
+
+    expect(result.imageUrl).not.toContain("pollinations.ai/prompt/");
+    expect(result.imageUrl).not.toContain(secretPhrase);
+    expect(result.imageUrl.startsWith("data:image/")).toBe(true);
+  });
+});
+
+describe("isPromptEmbeddedPollinationsUrl", () => {
+  it("detects prompt-bearing Pollinations paths", async () => {
+    const { isPromptEmbeddedPollinationsUrl } = await import(
+      "@/lib/ai/image-providers"
+    );
+    expect(
+      isPromptEmbeddedPollinationsUrl(
+        "https://image.pollinations.ai/prompt/hello%20world?seed=1"
+      )
+    ).toBe(true);
+    expect(
+      isPromptEmbeddedPollinationsUrl("https://image.pollinations.ai/out.jpg")
+    ).toBe(false);
+  });
 });

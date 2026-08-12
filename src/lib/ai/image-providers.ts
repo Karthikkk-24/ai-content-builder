@@ -303,13 +303,47 @@ function buildPollinationsImageUrl({
   return url;
 }
 
+/**
+ * Pollinations encodes the full prompt in `/prompt/{encoded}` paths.
+ * Those URLs must never be returned to clients or persisted.
+ */
+export function isPromptEmbeddedPollinationsUrl(raw: string): boolean {
+  try {
+    const url = new URL(raw);
+    const host = url.hostname.toLowerCase();
+    if (host !== "pollinations.ai" && !host.endsWith(".pollinations.ai")) {
+      return false;
+    }
+    return url.pathname.startsWith("/prompt/");
+  } catch {
+    return false;
+  }
+}
+
+async function materializeRemoteImageUrl(
+  imageUrl: string
+): Promise<ImageGenerationResult> {
+  const scrubbed = scrubProviderSecretsFromUrl(imageUrl);
+  const timeout = withTimeoutSignal(IMAGE_FETCH_TIMEOUT_MS);
+  try {
+    const response = await fetch(scrubbed, { signal: timeout.signal });
+    if (!response.ok) {
+      throw new Error(`Failed to fetch provider image: ${response.status}`);
+    }
+    const contentType = response.headers.get("content-type") || "image/jpeg";
+    const buffer = await response.arrayBuffer();
+    return resolveBufferToUrl(buffer, contentType, "pollinations");
+  } finally {
+    timeout.clear();
+  }
+}
+
 async function generateWithPollinations(params: {
   prompt: string;
   width: number;
   height: number;
 }): Promise<ImageGenerationResult> {
   const seed = Date.now() % 1_000_000;
-  const hasApiKey = Boolean(process.env.POLLINATIONS_API_KEY);
   const fetchUrl = buildPollinationsImageUrl({
     prompt: params.prompt,
     width: params.width,
@@ -317,13 +351,6 @@ async function generateWithPollinations(params: {
     seed,
     includeApiKey: true,
   });
-  const publicUrl = buildPollinationsImageUrl({
-    prompt: params.prompt,
-    width: params.width,
-    height: params.height,
-    seed,
-    includeApiKey: false,
-  }).toString();
 
   const timeout = withTimeoutSignal(IMAGE_FETCH_TIMEOUT_MS);
   let response: Response;
@@ -342,8 +369,12 @@ async function generateWithPollinations(params: {
   if (contentType.includes("application/json")) {
     const data = await response.json();
     if (typeof data?.url === "string" && data.url.length > 0) {
+      const scrubbed = scrubProviderSecretsFromUrl(data.url);
+      if (isPromptEmbeddedPollinationsUrl(scrubbed)) {
+        return materializeRemoteImageUrl(scrubbed);
+      }
       return {
-        imageUrl: scrubProviderSecretsFromUrl(data.url),
+        imageUrl: scrubbed,
         provider: "pollinations",
       };
     }
@@ -352,17 +383,9 @@ async function generateWithPollinations(params: {
 
   if (contentType.startsWith("image/")) {
     const buffer = await response.arrayBuffer();
-    const hostedUrl = await rehostGeneratedImage(buffer, contentType);
-    if (hostedUrl) {
-      return { imageUrl: hostedUrl, provider: "pollinations" };
-    }
-    if (!hasApiKey) {
-      return { imageUrl: publicUrl, provider: "pollinations" };
-    }
-    return {
-      imageUrl: bufferToDataUrl(buffer, contentType),
-      provider: "pollinations",
-    };
+    // Always rehost or use a data URL — never return the prompt-bearing
+    // Pollinations URL to clients or the database.
+    return resolveBufferToUrl(buffer, contentType, "pollinations");
   }
 
   const buffer = await response.arrayBuffer();
