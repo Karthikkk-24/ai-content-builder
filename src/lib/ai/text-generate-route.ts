@@ -27,6 +27,17 @@ const schema = z.object({
   stream: z.boolean().optional(),
 });
 
+/** Merge client context with a server-forced generationType (server wins). */
+export function mergeForcedGenerationContext(
+  context: Record<string, string> | undefined,
+  forceGenerationType?: string
+): Record<string, string> {
+  return {
+    ...(context || {}),
+    ...(forceGenerationType ? { generationType: forceGenerationType } : {}),
+  };
+}
+
 export async function handleTextGeneratePost(
   req: Request,
   options: {
@@ -62,12 +73,10 @@ export async function handleTextGeneratePost(
     }
 
     const { prompt, context, remarks, referenceImageUrl, stream } = parsed.data;
-    const mergedContext = {
-      ...(context || {}),
-      ...(options.forceGenerationType
-        ? { generationType: options.forceGenerationType }
-        : {}),
-    };
+    const mergedContext = mergeForcedGenerationContext(
+      context,
+      options.forceGenerationType
+    );
 
     const wantsStream =
       stream === true ||
