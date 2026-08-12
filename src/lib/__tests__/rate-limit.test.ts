@@ -83,4 +83,31 @@ describe("checkRateLimit", () => {
     expect(result.allowed).toBe(false);
     expect(result.retryAfterSeconds).toBe(60);
   });
+
+  it("applies tier multipliers to Redis maxRequests", async () => {
+    mockEval.mockResolvedValue([1, 0]);
+
+    const { checkRateLimit } = await import("@/lib/rate-limit");
+    await checkRateLimit("user_pro", "tweet", { tier: "pro" });
+    await checkRateLimit("user_ent", "tweet", { tier: "enterprise" });
+
+    expect(mockEval.mock.calls[0][2][2]).toBe(60); // 20 * 3
+    expect(mockEval.mock.calls[1][2][2]).toBe(200); // 20 * 10
+  });
+});
+
+describe("tier resolution helpers", () => {
+  it("normalizes unknown tiers to free", async () => {
+    const { normalizeUserTier } = await import("@/lib/rate-limit");
+    expect(normalizeUserTier(undefined)).toBe("free");
+    expect(normalizeUserTier("gold")).toBe("free");
+    expect(normalizeUserTier("pro")).toBe("pro");
+  });
+
+  it("scales route limits by tier multiplier", async () => {
+    const { resolveRouteMaxRequests } = await import("@/lib/rate-limit");
+    expect(resolveRouteMaxRequests("photo", "free")).toBe(5);
+    expect(resolveRouteMaxRequests("photo", "pro")).toBe(15);
+    expect(resolveRouteMaxRequests("photo", "enterprise")).toBe(50);
+  });
 });
