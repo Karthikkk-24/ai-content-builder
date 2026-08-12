@@ -15,7 +15,7 @@ A full-stack Next.js application for building content and generating AI-powered 
 
 ## Tech Stack
 
-- Next.js 15 (App Router) + TypeScript
+- Next.js 16 (App Router) + TypeScript
 - Tailwind CSS v4
 - Clerk (auth) + Neon Postgres (database) + Drizzle ORM
 - Vercel AI SDK (Gemini + Groq)
@@ -151,10 +151,10 @@ Redis powers:
 - Distributed rate limiting across server instances (critical in production)
 - Session activity tracking
 
-Rate limits are **per-endpoint** and enforced atomically with a sorted-set Lua
-script (no race conditions, no cross-endpoint throttling). Image routes are
-capped more aggressively than text routes because they hit upstream providers
-(Pollinations) that are the most expensive to abuse.
+Rate limits are **per-endpoint** over a **60-second sliding window** (not daily
+quotas) and enforced atomically with a sorted-set Lua script. Image routes are
+capped more aggressively than text routes. Plan tiers multiply the base caps
+(`free` 1×, `pro` 3×, `enterprise` 10×).
 
 | Endpoint | Limit |
 |----------|-------|
