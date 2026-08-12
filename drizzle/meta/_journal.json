@@ -43,6 +43,13 @@
       "when": 1786469000000,
       "tag": "0005_users_tier",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1786471000000,
+      "tag": "0006_user_id_indexes",
+      "breakpoints": true
     }
   ]
 }
