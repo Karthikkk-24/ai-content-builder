@@ -1,5 +1,6 @@
 import { auth } from "@clerk/nextjs/server";
 import { apiError, apiSuccess, getRequestId } from "@/lib/api/response";
+import { clerkConfig } from "@/lib/clerk-config";
 import { getSessionStatus, touchUserSession } from "@/lib/session";
 
 /** Read last Redis activity stamp (does not refresh TTL). */
@@ -39,14 +40,13 @@ export async function POST(req: Request) {
     }
 
     const activity = await touchUserSession(userId);
-    const status = await getSessionStatus(userId);
 
     return apiSuccess(
       {
         ok: true as const,
         activeAt: activity.activeAt,
-        maxAgeDays: status.maxAgeDays,
-        isActive: status.isActive,
+        maxAgeDays: clerkConfig.sessionMaxAgeDays,
+        isActive: true as const,
       },
       requestId
     );
