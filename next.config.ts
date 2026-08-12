@@ -21,6 +21,11 @@ const securityHeaders = [
     key: "Permissions-Policy",
     value: "camera=(), microphone=(), geolocation=()",
   },
+  {
+    // Enforced by browsers only over HTTPS (safe for local http://localhost).
+    key: "Strict-Transport-Security",
+    value: "max-age=31536000; includeSubDomains",
+  },
 ];
 
 const nextConfig: NextConfig = {
