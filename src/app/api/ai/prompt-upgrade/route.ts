@@ -43,6 +43,8 @@ const schema = z.object({
   context: aiContextSchema,
   referenceImageUrl: z.string().nullable().optional(),
   remarks: aiRemarksSchema,
+  /** When true, persist the generation but skip creating another Builder project. */
+  regenerate: z.boolean().optional(),
 });
 
 export async function POST(req: Request) {
@@ -70,7 +72,8 @@ export async function POST(req: Request) {
       return apiError("INVALID_INPUT", "Invalid input", 400, requestId);
     }
 
-    const { prompt, context, referenceImageUrl, remarks } = parsed.data;
+    const { prompt, context, referenceImageUrl, remarks, regenerate } =
+      parsed.data;
     const sanitizedPrompt = sanitizeUserInput(prompt, { maxChars: 2_000 });
     const sanitizedContext = sanitizeContext(context);
 
@@ -125,19 +128,22 @@ export async function POST(req: Request) {
       .returning({ id: generations.id });
 
     await invalidateUserCache(userId);
-    await saveTextGenerationAsProject({
-      userId,
-      type: "prompt_upgrade",
-      prompt: sanitizedPrompt,
-      output: moderated.text,
-      generationId: generation.id,
-    });
+    if (!regenerate) {
+      await saveTextGenerationAsProject({
+        userId,
+        type: "prompt_upgrade",
+        prompt: sanitizedPrompt,
+        output: moderated.text,
+        generationId: generation.id,
+      });
+    }
 
     logAction({
       requestId,
       action: "ai.prompt_upgrade",
       userId,
       outcome: "success",
+      detail: regenerate ? "regenerate=true" : undefined,
     });
 
     return apiSuccess(
