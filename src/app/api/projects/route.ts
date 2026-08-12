@@ -13,6 +13,10 @@ import {
   readJsonBody,
 } from "@/lib/api/read-json";
 import { invalidateUserCache } from "@/lib/cache";
+import {
+  projectBlocksSchema,
+  projectTitleSchema,
+} from "@/lib/content-blocks";
 import { db } from "@/lib/db";
 import { contentProjects } from "@/lib/db/schema";
 import { ensureUser } from "@/lib/db/users";
@@ -23,8 +27,8 @@ const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 100;
 
 const createSchema = z.object({
-  title: z.string().optional(),
-  blocks: z.array(z.any()).optional(),
+  title: projectTitleSchema.optional(),
+  blocks: projectBlocksSchema.optional(),
 });
 
 export async function GET(req: Request) {
