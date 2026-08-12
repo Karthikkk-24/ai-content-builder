@@ -23,6 +23,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { getApiErrorMessage } from "@/lib/api/client-error";
 import type { ContentBlock } from "@/lib/db/schema";
+import { isAllowedContentImageUrl } from "@/lib/content-blocks";
 import { blocksToMarkdown } from "@/lib/markdown-export";
 
 const blockTypes = [
@@ -544,17 +545,20 @@ export function ContentBuilder({
                       )}
                       {block.type === "image" && (
                         <div className="space-y-2">
-                          {block.url ? (
+                          {block.url && isAllowedContentImageUrl(block.url) ? (
                             // eslint-disable-next-line @next/next/no-img-element
                             <img
                               src={block.url}
                               alt={block.content || "Content image"}
                               className="max-h-64 w-full rounded-md border border-zinc-200 object-cover"
+                              referrerPolicy="no-referrer"
                             />
                           ) : (
                             <div className="flex items-center gap-2 text-sm text-zinc-500">
                               <ImageIcon className="h-4 w-4" strokeWidth={1.5} />
-                              No image URL
+                              {block.url
+                                ? "Image URL is not on the allowlist"
+                                : "No image URL"}
                             </div>
                           )}
                           {block.content && (
