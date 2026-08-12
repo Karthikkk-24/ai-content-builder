@@ -109,10 +109,13 @@ describe("formatAiError", () => {
     process.env.GOOGLE_GENERATIVE_AI_API_KEY = previous;
   });
 
-  it("passes through unknown messages", () => {
+  it("maps unknown provider messages to a generic client-safe string", () => {
     expect(formatAiError(new Error("Something unique happened"))).toBe(
-      "Something unique happened"
+      "AI generation failed. Please try again shortly."
     );
+    expect(
+      formatAiError(new Error("Vertex AI request id=abc model=gemini-secret"))
+    ).not.toMatch(/Vertex|gemini-secret|request id/i);
   });
 });
 
