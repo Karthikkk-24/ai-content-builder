@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const execute = vi.fn();
 const redisSet = vi.fn();
 const redisGet = vi.fn();
+let redisConfigured = true;
 
 vi.mock("@/lib/db", () => ({
   db: {
@@ -15,7 +16,7 @@ vi.mock("@/lib/redis", () => ({
     set: (...args: unknown[]) => redisSet(...args),
     get: (...args: unknown[]) => redisGet(...args),
   }),
-  isRedisConfigured: () => true,
+  isRedisConfigured: () => redisConfigured,
 }));
 
 describe("health checks", () => {
@@ -23,6 +24,8 @@ describe("health checks", () => {
     execute.mockReset();
     redisSet.mockReset();
     redisGet.mockReset();
+    redisConfigured = true;
+    vi.unstubAllEnvs();
   });
 
   it("checkDatabase succeeds on SELECT 1", async () => {
@@ -65,5 +68,15 @@ describe("health checks", () => {
     expect(result.ok).toBe(false);
     expect(result.detail).toBe("Redis check failed");
     expect(result.detail).not.toMatch(/ECONNREFUSED|127\.0\.0\.1/);
+  });
+
+  it("checkRedis is not ready in production without Upstash", async () => {
+    redisConfigured = false;
+    vi.stubEnv("NODE_ENV", "production");
+    const { checkRedis } = await import("@/lib/health");
+    const result = await checkRedis();
+    expect(result.ok).toBe(false);
+    expect(result.detail).toBe("Redis is not configured");
+    expect(redisSet).not.toHaveBeenCalled();
   });
 });

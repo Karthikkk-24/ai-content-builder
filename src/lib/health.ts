@@ -25,6 +25,16 @@ export async function checkDatabase(): Promise<HealthCheckResult> {
 
 export async function checkRedis(): Promise<HealthCheckResult> {
   const started = Date.now();
+  // Align with AI rate-limit fail-closed: in-memory Redis is not multi-instance
+  // and is not used for production limiting, so the service is not ready.
+  if (process.env.NODE_ENV === "production" && !isRedisConfigured()) {
+    return {
+      ok: false,
+      latencyMs: Date.now() - started,
+      detail: "Redis is not configured",
+    };
+  }
+
   try {
     const redis = getRedis();
     const key = "health:ready:ping";
