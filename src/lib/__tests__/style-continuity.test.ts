@@ -29,6 +29,12 @@ describe("style continuity", () => {
     expect(text).toContain("Mood: moody, dark");
     expect(text).toContain("Dominant colors: blue, black");
     expect(text).toContain("Prior look summary: moody night city");
+    expect(text).toContain("<<BEGIN_UNTRUSTED_USER_CONTENT>>");
+    expect(text).toContain("<<END_UNTRUSTED_USER_CONTENT>>");
+    const begin = text.indexOf("<<BEGIN_UNTRUSTED_USER_CONTENT>>");
+    const summaryAt = text.indexOf("Prior look summary:");
+    expect(begin).toBeGreaterThan(-1);
+    expect(summaryAt).toBeGreaterThan(begin);
   });
 
   it("normalizes client-provided fingerprints", () => {

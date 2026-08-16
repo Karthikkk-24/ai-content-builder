@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { analyzeReferenceImage } from "@/lib/ai/router";
-import { sanitizeUserInput } from "@/lib/ai/sanitize";
+import { delimitUntrusted, sanitizeUserInput } from "@/lib/ai/sanitize";
 
 export type StyleFingerprint = {
   summary: string;
@@ -74,9 +74,7 @@ export function normalizeStyleFingerprint(
 }
 
 export function formatStyleSoftConstraints(style: StyleFingerprint): string {
-  const parts = [
-    "Preserve continuity with the previous generation style (soft constraints, not hard locks):",
-  ];
+  const parts: string[] = [];
   if (style.moodWords.length) {
     parts.push(`Mood: ${style.moodWords.join(", ")}`);
   }
@@ -89,7 +87,10 @@ export function formatStyleSoftConstraints(style: StyleFingerprint): string {
   if (style.summary) {
     parts.push(`Prior look summary: ${style.summary}`);
   }
-  return parts.join("\n");
+  return [
+    "Preserve continuity with the previous generation style (soft constraints, not hard locks):",
+    delimitUntrusted(parts.join("\n")),
+  ].join("\n");
 }
 
 const MOOD_LEXICON = [
