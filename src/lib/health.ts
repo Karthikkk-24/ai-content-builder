@@ -14,10 +14,11 @@ export async function checkDatabase(): Promise<HealthCheckResult> {
     await db.execute(sql`SELECT 1`);
     return { ok: true, latencyMs: Date.now() - started };
   } catch (error) {
+    console.error("Health database check failed:", error);
     return {
       ok: false,
       latencyMs: Date.now() - started,
-      detail: error instanceof Error ? error.message : "Database check failed",
+      detail: "Database check failed",
     };
   }
 }
@@ -42,10 +43,11 @@ export async function checkRedis(): Promise<HealthCheckResult> {
       detail: isRedisConfigured() ? "upstash" : "memory-fallback",
     };
   } catch (error) {
+    console.error("Health redis check failed:", error);
     return {
       ok: false,
       latencyMs: Date.now() - started,
-      detail: error instanceof Error ? error.message : "Redis check failed",
+      detail: "Redis check failed",
     };
   }
 }

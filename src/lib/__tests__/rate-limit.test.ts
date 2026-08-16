@@ -110,4 +110,21 @@ describe("tier resolution helpers", () => {
     expect(resolveRouteMaxRequests("photo", "pro")).toBe(15);
     expect(resolveRouteMaxRequests("photo", "enterprise")).toBe(50);
   });
+
+  it("derives a sanitized public client key from forwarded headers", async () => {
+    const { clientKeyFromRequest } = await import("@/lib/rate-limit");
+    const req = new Request("https://example.test/api/health/ready", {
+      headers: {
+        "x-forwarded-for": "203.0.113.9, 10.0.0.1",
+      },
+    });
+    expect(clientKeyFromRequest(req)).toBe("203.0.113.9");
+  });
+
+  it("public limiter uses memory when Redis is unset", async () => {
+    redisConfigured = false;
+    const { checkPublicRateLimit } = await import("@/lib/rate-limit");
+    const first = await checkPublicRateLimit("probe-ip", "ready");
+    expect(first.allowed).toBe(true);
+  });
 });
