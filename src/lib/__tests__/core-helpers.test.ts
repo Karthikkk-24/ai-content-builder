@@ -117,6 +117,21 @@ describe("formatAiError", () => {
       formatAiError(new Error("Vertex AI request id=abc model=gemini-secret"))
     ).not.toMatch(/Vertex|gemini-secret|request id/i);
   });
+
+  it("does not name env files or API key variables", () => {
+    const previous = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+    delete process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+    const missing = formatAiError(new Error("Invalid API key"));
+    process.env.GOOGLE_GENERATIVE_AI_API_KEY = "test-key";
+    const invalid = formatAiError(new Error("Invalid API key"));
+    const allFailed = formatAiError(new Error("All text providers failed"));
+    process.env.GOOGLE_GENERATIVE_AI_API_KEY = previous;
+
+    for (const msg of [missing, invalid, allFailed]) {
+      expect(msg).not.toMatch(/\.env\.local/i);
+      expect(msg).not.toMatch(/GOOGLE_GENERATIVE_AI_API_KEY|GROQ_API_KEY/);
+    }
+  });
 });
 
 describe("cache keys", () => {

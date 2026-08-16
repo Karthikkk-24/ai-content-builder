@@ -35,9 +35,9 @@ export function formatAiError(error: unknown): string {
 
   if (AUTH_PATTERNS.some((pattern) => pattern.test(message))) {
     if (/groq/i.test(message) || !process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
-      return "AI provider is not configured. Add GOOGLE_GENERATIVE_AI_API_KEY (and optionally GROQ_API_KEY) to your .env.local file.";
+      return "AI provider is not configured. Check server configuration and try again.";
     }
-    return "Google AI API key is invalid or expired. Check GOOGLE_GENERATIVE_AI_API_KEY in your .env.local file.";
+    return "The AI API key is invalid or expired. Please contact the site operator.";
   }
 
   if (MODEL_PATTERNS.some((pattern) => pattern.test(message))) {
@@ -45,7 +45,7 @@ export function formatAiError(error: unknown): string {
   }
 
   if (/all text providers failed/i.test(message)) {
-    return "All AI providers failed after retries. Check your API keys in .env.local and try again.";
+    return "All AI providers failed after retries. Please try again shortly.";
   }
 
   // Unknown provider/internal messages stay on the server (callers should log `error`).
