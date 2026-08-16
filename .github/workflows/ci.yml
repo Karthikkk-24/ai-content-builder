@@ -37,7 +37,7 @@ jobs:
           GOOGLE_GENERATIVE_AI_API_KEY: ${{ secrets.GOOGLE_GENERATIVE_AI_API_KEY }}
           E2E_CLERK_USER_EMAIL: ${{ secrets.E2E_CLERK_USER_EMAIL }}
           E2E_CLERK_USER_PASSWORD: ${{ secrets.E2E_CLERK_USER_PASSWORD }}
-        run: npm run test:e2e -- e2e/public.spec.ts
+        run: npm run test:e2e
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
