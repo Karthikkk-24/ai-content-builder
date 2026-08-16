@@ -4,6 +4,7 @@ import { cacheDel, userCacheKeys } from "@/lib/cache";
 import { db } from "@/lib/db";
 import { referenceImages } from "@/lib/db/schema";
 import { upsertUserPreferences } from "@/lib/preferences";
+import { persistUploadMetadata } from "@/lib/uploadthing-persist";
 
 const f = createUploadthing();
 
@@ -26,18 +27,13 @@ export const uploadRouter = {
       return { userId };
     })
     .onUploadComplete(async ({ metadata, file }) => {
-      try {
+      await persistUploadMetadata(file.key, async () => {
         await db.insert(referenceImages).values({
           userId: metadata.userId,
           url: file.ufsUrl,
           fileName: file.name,
         });
-      } catch (error) {
-        console.error(
-          "Failed to persist reference image metadata:",
-          error
-        );
-      }
+      });
 
       return {
         uploadedBy: metadata.userId,
@@ -59,14 +55,12 @@ export const uploadRouter = {
       return { userId };
     })
     .onUploadComplete(async ({ metadata, file }) => {
-      try {
+      await persistUploadMetadata(file.key, async () => {
         await upsertUserPreferences(metadata.userId, {
           customAvatarUrl: file.ufsUrl,
         });
         await cacheDel(userCacheKeys(metadata.userId).profile);
-      } catch (error) {
-        console.error("Failed to persist custom avatar:", error);
-      }
+      });
 
       return {
         uploadedBy: metadata.userId,
