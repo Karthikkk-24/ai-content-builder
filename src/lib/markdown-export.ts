@@ -1,4 +1,5 @@
 import type { ContentBlock } from "@/lib/db/schema";
+import { isAllowedDataImageUrl } from "@/lib/safe-url";
 
 const HTML_TAG_REGEX = /<\/?[a-z][\s\S]*?>/gi;
 
@@ -38,10 +39,19 @@ function escapeLinkText(text: string): string {
   return text.replace(/[\[\]]/g, "\\$&");
 }
 
-function sanitizeMarkdownUrl(url: string | undefined): string {
+function sanitizeMarkdownUrl(
+  url: string | undefined,
+  options: { allowRasterData?: boolean } = {}
+): string {
   if (!url) return "";
   const trimmed = url.trim();
-  if (/^(javascript|vbscript|data):/i.test(trimmed)) {
+  if (/^(javascript|vbscript):/i.test(trimmed)) {
+    return "";
+  }
+  if (/^data:/i.test(trimmed)) {
+    if (options.allowRasterData && isAllowedDataImageUrl(trimmed)) {
+      return trimmed;
+    }
     return "";
   }
   // Escape parentheses that would break markdown link/image destinations.
@@ -64,7 +74,7 @@ export function blocksToMarkdown(blocks: ContentBlock[]): string {
           return `${content}\n\n`;
         case "image": {
           const alt = escapeLinkText(content || "image");
-          const src = sanitizeMarkdownUrl(block.url);
+          const src = sanitizeMarkdownUrl(block.url, { allowRasterData: true });
           return src ? `![${alt}](${src})\n\n` : "";
         }
         case "divider":
