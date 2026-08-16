@@ -31,6 +31,7 @@ const ROUTE_RULES: Record<string, { maxRequests: number }> = {
   photo: { maxRequests: 5 },
   poster: { maxRequests: 5 },
   "prompt-upgrade": { maxRequests: 10 },
+  export: { maxRequests: 5 },
   default: { maxRequests: 20 },
 };
 

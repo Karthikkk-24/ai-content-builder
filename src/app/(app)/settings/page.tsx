@@ -21,6 +21,7 @@ const ROUTE_LABELS: Record<string, string> = {
   photo: "Photos",
   poster: "Posters",
   "prompt-upgrade": "Prompt upgrade",
+  export: "Data export",
   default: "Other AI routes",
 };
 
