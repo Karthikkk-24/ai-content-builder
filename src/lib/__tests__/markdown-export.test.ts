@@ -32,6 +32,39 @@ describe("blocksToMarkdown", () => {
     expect(md).not.toContain("javascript:");
   });
 
+  it("keeps raster data:image URLs on image blocks", () => {
+    const src = "data:image/png;base64,aaa";
+    const md = blocksToMarkdown([
+      {
+        id: "1",
+        type: "image",
+        content: "Shot",
+        url: src,
+      },
+    ]);
+    expect(md).toContain(`![Shot](${src})`);
+  });
+
+  it("still drops data: URLs on CTA links and non-raster data images", () => {
+    const md = blocksToMarkdown([
+      {
+        id: "1",
+        type: "cta",
+        content: "Click",
+        url: "data:text/html;base64,PHNjcmlwdD4=",
+      },
+      {
+        id: "2",
+        type: "image",
+        content: "Bad",
+        url: "data:image/svg+xml;base64,PHN2Zz4=",
+      },
+    ]);
+    expect(md).toContain("[Click](#)");
+    expect(md).not.toContain("data:text/html");
+    expect(md).not.toContain("data:image/svg");
+  });
+
   it("renders paragraphs with blank-line separation", () => {
     const md = blocksToMarkdown([
       { id: "1", type: "paragraph", content: "One" },
