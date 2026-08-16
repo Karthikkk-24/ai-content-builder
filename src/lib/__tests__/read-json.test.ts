@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { AI_JSON_BODY_LIMIT_BYTES, readJsonBody } from "@/lib/api/read-json";
+import {
+  AI_JSON_BODY_LIMIT_BYTES,
+  readJsonBody,
+  readRawBody,
+} from "@/lib/api/read-json";
 
 function makeRequest(body: string, headers?: HeadersInit) {
   return new Request("http://localhost/api/test", {
@@ -46,6 +50,21 @@ describe("readJsonBody", () => {
     expect(result.ok).toBe(false);
     if (!result.ok) {
       expect(result.status).toBe(400);
+    }
+  });
+});
+
+describe("readRawBody", () => {
+  it("returns UTF-8 text under the limit", async () => {
+    const result = await readRawBody(makeRequest('{"ok":true}'), 1_000);
+    expect(result).toEqual({ ok: true, text: '{"ok":true}' });
+  });
+
+  it("stops streaming once the byte cap is exceeded", async () => {
+    const result = await readRawBody(makeRequest("x".repeat(50)), 16);
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.status).toBe(413);
     }
   });
 });

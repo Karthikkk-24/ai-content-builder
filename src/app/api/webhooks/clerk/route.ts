@@ -7,6 +7,7 @@ import {
   logAction,
   logSecurityEvent,
 } from "@/lib/api/response";
+import { readRawBody, WEBHOOK_BODY_LIMIT_BYTES } from "@/lib/api/read-json";
 import { invalidateUserCache } from "@/lib/cache";
 import { resolveClerkPrimaryEmail } from "@/lib/clerk-email";
 import { db } from "@/lib/db";
@@ -45,10 +46,7 @@ export async function POST(req: Request) {
     return new Response("Missing svix headers", { status: 400 });
   }
 
-  // Use raw text so signature bytes match what Clerk signed.
-  const body = await req.text();
-
-  // Explicit replay window (Svix also enforces its own default tolerance).
+  // Reject stale timestamps before buffering the body (DoS).
   const timestampSeconds = Number(svixTimestamp);
   if (
     !Number.isFinite(timestampSeconds) ||
@@ -65,6 +63,22 @@ export async function POST(req: Request) {
     });
     return new Response("Stale webhook timestamp", { status: 400 });
   }
+
+  const rawBody = await readRawBody(req, WEBHOOK_BODY_LIMIT_BYTES);
+  if (!rawBody.ok) {
+    logSecurityEvent({
+      type: "webhook_failure",
+      requestId,
+      action: "clerk.webhook",
+      reason: rawBody.message,
+      status: rawBody.status,
+      detail: svixId,
+    });
+    return new Response(rawBody.message, { status: rawBody.status });
+  }
+
+  // Raw UTF-8 text so signature bytes match what Clerk signed.
+  const body = rawBody.text;
 
   const wh = new Webhook(WEBHOOK_SECRET);
 
