@@ -1,3 +1,4 @@
+import { formatAiError } from "@/lib/ai/errors";
 import {
   analyzeReferenceImage,
   generateTextWithFallback,
@@ -326,12 +327,10 @@ export async function streamAndPersistTextResponse({
         });
         controller.close();
       } catch (error) {
+        console.error("Streaming generation failed:", error);
         send({
           type: "error",
-          message:
-            error instanceof Error
-              ? error.message
-              : "Streaming generation failed",
+          message: formatAiError(error),
         });
         controller.close();
       }
