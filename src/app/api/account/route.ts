@@ -15,6 +15,7 @@ import {
 import { cacheDel, invalidateUserCache, userCacheKeys } from "@/lib/cache";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
+import { deleteUserUploadthingFiles } from "@/lib/uploadthing-files";
 
 const deleteSchema = z.object({
   confirmation: z.literal("DELETE MY ACCOUNT"),
@@ -46,6 +47,10 @@ export async function DELETE(req: Request) {
         { action: "account.delete", userId }
       );
     }
+
+    // Purge blobs while URL rows still exist. Clerk delete may fire
+    // user.deleted concurrently; the webhook also purges before cascade.
+    await deleteUserUploadthingFiles(userId);
 
     // Delete Clerk user first; webhook also cascades DB rows if it arrives.
     // We still delete local rows so data is gone even if the webhook is delayed.
