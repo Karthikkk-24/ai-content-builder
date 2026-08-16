@@ -32,6 +32,29 @@ export function validateEnv(): RequiredEnv {
   return validated;
 }
 
+/** Tests only: clear the memoized successful parse. */
+export function __resetEnvValidationForTests(): void {
+  validated = null;
+}
+
+/**
+ * Call once at server boot (`instrumentation.ts`). Production fails closed;
+ * local/dev/e2e log and continue so Playwright can exercise public routes.
+ */
+export function assertRequiredEnvAtBoot(): void {
+  try {
+    validateEnv();
+  } catch (error) {
+    if (process.env.NODE_ENV === "production") {
+      throw error;
+    }
+    console.warn(
+      "Environment validation failed (non-production):",
+      error instanceof Error ? error.message : error
+    );
+  }
+}
+
 export function optionalEnv(key: string): string | undefined {
   return process.env[key] || undefined;
 }
