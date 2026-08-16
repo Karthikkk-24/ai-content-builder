@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { ImagePlus, Loader2, X } from "lucide-react";
 import { uploadFiles } from "@/lib/uploadthing";
@@ -8,6 +8,12 @@ import { cn } from "@/lib/utils";
 
 const MAX_FILE_SIZE = 4 * 1024 * 1024;
 const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+
+type RecentReference = {
+  id: string;
+  url: string;
+  fileName: string;
+};
 
 interface ReferenceImageUploaderProps {
   value?: string | null;
@@ -24,6 +30,43 @@ export function ReferenceImageUploader({
   const [uploading, setUploading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [recents, setRecents] = useState<RecentReference[]>([]);
+
+  const loadRecents = useCallback(async () => {
+    try {
+      const res = await fetch("/api/reference-images");
+      if (!res.ok) return;
+      const data: unknown = await res.json();
+      if (
+        !data ||
+        typeof data !== "object" ||
+        !("items" in data) ||
+        !Array.isArray((data as { items: unknown }).items)
+      ) {
+        return;
+      }
+      const items = (data as { items: unknown[] }).items.flatMap((item) => {
+        if (
+          !item ||
+          typeof item !== "object" ||
+          typeof (item as { id?: unknown }).id !== "string" ||
+          typeof (item as { url?: unknown }).url !== "string" ||
+          typeof (item as { fileName?: unknown }).fileName !== "string"
+        ) {
+          return [];
+        }
+        const row = item as RecentReference;
+        return [{ id: row.id, url: row.url, fileName: row.fileName }];
+      });
+      setRecents(items);
+    } catch {
+      // Listing is best-effort; upload still works.
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadRecents();
+  }, [loadRecents]);
 
   const processFile = useCallback(
     async (file: File) => {
@@ -55,13 +98,14 @@ export function ReferenceImageUploader({
         }
 
         onChange(url);
+        void loadRecents();
       } catch {
         setError("Failed to upload image. Please try again.");
       } finally {
         setUploading(false);
       }
     },
-    [onChange]
+    [loadRecents, onChange]
   );
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -143,6 +187,31 @@ export function ReferenceImageUploader({
       />
 
       {error && <p className="text-xs text-zinc-600">{error}</p>}
+
+      {recents.length > 0 && (
+        <div className="space-y-2">
+          <p className="text-xs font-medium text-zinc-500">Recent uploads</p>
+          <div className="grid grid-cols-4 gap-2">
+            {recents.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => onChange(item.url)}
+                className="relative aspect-square overflow-hidden rounded-md border border-zinc-200 bg-zinc-50 hover:border-zinc-400"
+                title={item.fileName}
+              >
+                <Image
+                  src={item.url}
+                  alt={item.fileName}
+                  fill
+                  className="object-cover"
+                  unoptimized={item.url.startsWith("data:")}
+                />
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
