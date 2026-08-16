@@ -86,25 +86,34 @@ describe("generateImage secret handling", () => {
     expect(result.imageUrl).not.toContain("super-secret");
   });
 
-  it("scrubs keys from JSON provider responses", async () => {
-    global.fetch = vi.fn(async () => {
-      return new Response(
-        JSON.stringify({
-          url: "https://image.pollinations.ai/out.jpg?key=super-secret-pollinations-key&seed=1",
-        }),
-        {
-          status: 200,
-          headers: { "content-type": "application/json" },
-        }
-      );
+  it("rehosts JSON provider image URLs instead of returning them", async () => {
+    global.fetch = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes("image.pollinations.ai/prompt/")) {
+        return new Response(
+          JSON.stringify({
+            url: "https://image.pollinations.ai/out.jpg?key=super-secret-pollinations-key&seed=1",
+          }),
+          {
+            status: 200,
+            headers: { "content-type": "application/json" },
+          }
+        );
+      }
+      expect(url).not.toContain("key=");
+      const bytes = new Uint8Array([0xff, 0xd8, 0xff, 0xd9]);
+      return new Response(bytes, {
+        status: 200,
+        headers: { "content-type": "image/jpeg" },
+      });
     }) as typeof fetch;
 
     const { generateImage } = await import("@/lib/ai/router");
     const result = await generateImage({ prompt: "json path" });
 
-    expect(result.imageUrl).toBe(
-      "https://image.pollinations.ai/out.jpg?seed=1"
-    );
+    expect(result.imageUrl.startsWith("data:image/jpeg;base64,")).toBe(true);
+    expect(result.imageUrl).not.toContain("super-secret");
+    expect(result.imageUrl).not.toContain("pollinations.ai");
   });
 
   it("never returns a Pollinations URL that embeds the prompt", async () => {

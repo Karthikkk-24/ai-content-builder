@@ -1,4 +1,9 @@
 import { scrubProviderSecretsFromUrl } from "@/lib/image-utils";
+import {
+  assertSafeExternalImageUrl,
+  isAllowedDataImageUrl,
+} from "@/lib/safe-url";
+import { isPromptEmbeddedPollinationsUrl } from "@/lib/ai/image-providers";
 
 /**
  * Post-generation output moderation.
@@ -89,7 +94,9 @@ export function moderateAiTextOutput(
 }
 
 /**
- * Validate generated image outputs: scrub secrets, allow only https or data:image.
+ * Validate generated image outputs: scrub secrets, persist only data:image
+ * raster or allowlisted HTTPS (Uploadthing / Clerk / Pollinations). Never
+ * accept prompt-embedded Pollinations paths or arbitrary third-party URLs.
  */
 export function moderateAiImageOutput(rawUrl: string): {
   url: string;
@@ -107,32 +114,32 @@ export function moderateAiImageOutput(rawUrl: string): {
   const url = scrubProviderSecretsFromUrl(rawUrl);
 
   if (url.startsWith("data:image/")) {
-    // Reject non-image data URLs that somehow slipped through scrubbing.
-    if (/data:image\/(?:svg\+xml)/i.test(url)) {
+    if (!isAllowedDataImageUrl(url)) {
       return {
         url: "",
         blocked: true,
-        reason: "SVG data URLs are not allowed for generated images.",
+        reason: "Only raster data:image URLs are allowed.",
       };
     }
     return { url, blocked: false };
   }
 
-  try {
-    const parsed = new URL(url);
-    if (parsed.protocol !== "https:") {
-      return {
-        url: "",
-        blocked: true,
-        reason: "Generated image URL must use HTTPS.",
-      };
-    }
-    return { url: parsed.toString(), blocked: false };
-  } catch {
+  if (isPromptEmbeddedPollinationsUrl(url)) {
     return {
       url: "",
       blocked: true,
-      reason: "Generated image URL is invalid.",
+      reason: "Pollinations prompt URLs must be rehosted before return.",
     };
   }
+
+  const allowlisted = assertSafeExternalImageUrl(url);
+  if (!allowlisted.ok) {
+    return {
+      url: "",
+      blocked: true,
+      reason: allowlisted.reason,
+    };
+  }
+
+  return { url: allowlisted.url.toString(), blocked: false };
 }

@@ -1,5 +1,6 @@
 import { scrubProviderSecretsFromUrl } from "@/lib/image-utils";
 import { sanitizeUserInput } from "@/lib/ai/sanitize";
+import { fetchGeneratedImageForRehost } from "@/lib/safe-url";
 
 export type ImageProviderName =
   | "openai"
@@ -158,10 +159,7 @@ async function generateWithOpenAI(params: {
       );
     }
     if (item?.url) {
-      return {
-        imageUrl: scrubProviderSecretsFromUrl(item.url),
-        provider: "openai",
-      };
+      return materializeRemoteImageUrl(item.url, "openai");
     }
     throw new Error("OpenAI image response missing data");
   } finally {
@@ -217,10 +215,7 @@ async function generateWithRecraft(params: {
       );
     }
     if (item?.url) {
-      return {
-        imageUrl: scrubProviderSecretsFromUrl(item.url),
-        provider: "recraft",
-      };
+      return materializeRemoteImageUrl(item.url, "recraft");
     }
     throw new Error("Recraft image response missing data");
   } finally {
@@ -321,21 +316,15 @@ export function isPromptEmbeddedPollinationsUrl(raw: string): boolean {
 }
 
 async function materializeRemoteImageUrl(
-  imageUrl: string
+  imageUrl: string,
+  provider: ImageProviderName
 ): Promise<ImageGenerationResult> {
   const scrubbed = scrubProviderSecretsFromUrl(imageUrl);
-  const timeout = withTimeoutSignal(IMAGE_FETCH_TIMEOUT_MS);
-  try {
-    const response = await fetch(scrubbed, { signal: timeout.signal });
-    if (!response.ok) {
-      throw new Error(`Failed to fetch provider image: ${response.status}`);
-    }
-    const contentType = response.headers.get("content-type") || "image/jpeg";
-    const buffer = await response.arrayBuffer();
-    return resolveBufferToUrl(buffer, contentType, "pollinations");
-  } finally {
-    timeout.clear();
+  const fetched = await fetchGeneratedImageForRehost(scrubbed);
+  if (!fetched) {
+    throw new Error("Failed to fetch provider image for rehost");
   }
+  return resolveBufferToUrl(fetched.buffer, fetched.contentType, provider);
 }
 
 async function generateWithPollinations(params: {
@@ -369,14 +358,7 @@ async function generateWithPollinations(params: {
   if (contentType.includes("application/json")) {
     const data = await response.json();
     if (typeof data?.url === "string" && data.url.length > 0) {
-      const scrubbed = scrubProviderSecretsFromUrl(data.url);
-      if (isPromptEmbeddedPollinationsUrl(scrubbed)) {
-        return materializeRemoteImageUrl(scrubbed);
-      }
-      return {
-        imageUrl: scrubbed,
-        provider: "pollinations",
-      };
+      return materializeRemoteImageUrl(data.url, "pollinations");
     }
     throw new Error("Unexpected image response format");
   }

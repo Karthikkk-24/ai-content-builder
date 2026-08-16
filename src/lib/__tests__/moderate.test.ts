@@ -59,6 +59,17 @@ describe("moderateAiImageOutput", () => {
     expect(result.url).toBe("https://image.pollinations.ai/x.jpg?seed=1");
   });
 
+  it("blocks arbitrary https hosts and prompt-embedded Pollinations paths", () => {
+    expect(moderateAiImageOutput("https://evil.example/x.jpg").blocked).toBe(
+      true
+    );
+    expect(
+      moderateAiImageOutput(
+        "https://image.pollinations.ai/prompt/hello%20world"
+      ).blocked
+    ).toBe(true);
+  });
+
   it("allows data:image jpeg/png", () => {
     const result = moderateAiImageOutput("data:image/png;base64,aaaa");
     expect(result.blocked).toBe(false);
