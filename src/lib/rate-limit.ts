@@ -242,6 +242,65 @@ export async function checkRateLimit(
   }
 }
 
+/** Public unauthenticated probes. Kept out of user-facing Settings copy. */
+const PUBLIC_ROUTE_RULES: Record<string, { maxRequests: number }> = {
+  ready: { maxRequests: 30 },
+};
+
+/**
+ * Client key for public rate limits. Uses the first forwarded IP when present.
+ * This is a throttle signal, not auth — spoofing only changes the bucket.
+ */
+export function clientKeyFromRequest(req: Request): string {
+  const forwarded = req.headers.get("x-forwarded-for");
+  const candidate =
+    forwarded?.split(",")[0]?.trim() ||
+    req.headers.get("x-real-ip")?.trim() ||
+    req.headers.get("cf-connecting-ip")?.trim() ||
+    "unknown";
+  const sanitized = candidate.replace(/[^a-zA-Z0-9.:]/g, "").slice(0, 64);
+  return sanitized || "unknown";
+}
+
+/**
+ * Rate-limit public endpoints without a user id.
+ *
+ * Unlike AI routes, this fails over to in-memory even in production so
+ * orchestrator probes keep working if Redis is down (they would otherwise
+ * 429 forever via fail-closed `checkRateLimit`).
+ */
+export async function checkPublicRateLimit(
+  clientKey: string,
+  route: string
+): Promise<RateLimitResult> {
+  const rule = PUBLIC_ROUTE_RULES[route] ?? { maxRequests: 30 };
+  const key = `ratelimit:public:${route}:${clientKey}`;
+
+  if (!isRedisConfigured()) {
+    return memorySlidingWindow(key, rule);
+  }
+
+  try {
+    const redis = getRedis();
+    const nowSeconds = Math.floor(Date.now() / 1000);
+    const memberPrefix = `${nowSeconds}:${crypto.randomUUID()}`;
+
+    const [allowed, retryAfter] = (await redis.eval(
+      SLIDING_WINDOW_LUA,
+      [key],
+      [nowSeconds, WINDOW_SECONDS, rule.maxRequests, memberPrefix]
+    )) as [number, number];
+
+    return {
+      allowed: allowed === 1,
+      retryAfterSeconds: allowed === 1 ? 0 : retryAfter,
+    };
+  } catch (error) {
+    console.warn("Public rate-limit Redis error, falling back to in-memory:", error);
+    return memorySlidingWindow(key, rule);
+  }
+}
+
 export function rateLimitResponse(
   retryAfterSeconds: number,
   requestId?: string,

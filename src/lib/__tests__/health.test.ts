@@ -38,7 +38,8 @@ describe("health checks", () => {
     const { checkDatabase } = await import("@/lib/health");
     const result = await checkDatabase();
     expect(result.ok).toBe(false);
-    expect(result.detail).toMatch(/connection refused/);
+    expect(result.detail).toBe("Database check failed");
+    expect(result.detail).not.toMatch(/connection refused/);
   });
 
   it("checkRedis succeeds when set/get works", async () => {
@@ -55,5 +56,14 @@ describe("health checks", () => {
     const { checkRedis } = await import("@/lib/health");
     const result = await checkRedis();
     expect(result.ok).toBe(false);
+  });
+
+  it("checkRedis uses a generic detail when Redis throws", async () => {
+    redisSet.mockRejectedValueOnce(new Error("ECONNREFUSED 127.0.0.1:6379"));
+    const { checkRedis } = await import("@/lib/health");
+    const result = await checkRedis();
+    expect(result.ok).toBe(false);
+    expect(result.detail).toBe("Redis check failed");
+    expect(result.detail).not.toMatch(/ECONNREFUSED|127\.0\.0\.1/);
   });
 });
