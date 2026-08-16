@@ -12,6 +12,7 @@ import { invalidateUserCache } from "@/lib/cache";
 import { resolveClerkPrimaryEmail } from "@/lib/clerk-email";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
+import { deleteUserUploadthingFiles } from "@/lib/uploadthing-files";
 
 /** Svix default is 5 minutes; set explicitly to document the replay window. */
 const SVIX_TOLERANCE_SECONDS = 300;
@@ -142,6 +143,7 @@ export async function POST(req: Request) {
     } else if (evt.type === "user.deleted") {
       const { id } = evt.data;
       if (id) {
+        await deleteUserUploadthingFiles(id);
         // Cascades to projects, generations, and reference_images via FKs.
         await db.delete(users).where(eq(users.id, id));
         await invalidateUserCache(id);
