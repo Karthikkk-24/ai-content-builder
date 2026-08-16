@@ -80,7 +80,7 @@ npm run db:push
 psql $DATABASE_URL -f drizzle/0000_init.sql
 ```
 
-The schema creates four tables: `users`, `content_projects`, `generations`, and `reference_images`.
+The schema creates five tables: `users`, `content_projects`, `generations`, `reference_images`, and `user_preferences`.
 
 ### 4. Configure Clerk Google OAuth
 
@@ -103,7 +103,7 @@ In your Clerk dashboard, add a webhook endpoint:
 https://your-domain.com/api/webhooks/clerk
 ```
 
-Subscribe to `user.created` and `user.updated` events. Copy the signing secret to `CLERK_WEBHOOK_SECRET`.
+Subscribe to `user.created`, `user.updated`, and `user.deleted` events. Copy the signing secret to `CLERK_WEBHOOK_SECRET`. `user.deleted` cascades Neon rows and removes the user's Uploadthing blobs.
 
 ### 6. Configure session persistence (recommended)
 
