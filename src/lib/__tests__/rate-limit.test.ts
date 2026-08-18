@@ -109,6 +109,9 @@ describe("tier resolution helpers", () => {
     expect(resolveRouteMaxRequests("photo", "free")).toBe(5);
     expect(resolveRouteMaxRequests("photo", "pro")).toBe(15);
     expect(resolveRouteMaxRequests("photo", "enterprise")).toBe(50);
+    expect(resolveRouteMaxRequests("account-delete", "free")).toBe(3);
+    expect(resolveRouteMaxRequests("projects-write", "free")).toBe(30);
+    expect(resolveRouteMaxRequests("heartbeat", "free")).toBe(30);
   });
 
   it("derives a sanitized public client key from forwarded headers", async () => {

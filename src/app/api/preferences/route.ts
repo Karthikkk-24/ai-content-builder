@@ -13,6 +13,7 @@ import {
 } from "@/lib/api/read-json";
 import { cacheDel, userCacheKeys } from "@/lib/cache";
 import { ensureUser } from "@/lib/db/users";
+import { denyIfRateLimited } from "@/lib/rate-limit";
 import {
   PREFERENCE_GENERATION_TYPES,
   PREFERENCE_TONES,
@@ -45,6 +46,9 @@ export async function GET(req: Request) {
       });
     }
 
+    const limited = await denyIfRateLimited(userId, "preferences", requestId);
+    if (limited) return limited;
+
     await ensureUser(userId);
     const preferences = await getUserPreferences(userId);
     return apiSuccess(preferences, requestId);
@@ -70,6 +74,9 @@ export async function PATCH(req: Request) {
         action: "preferences.patch",
       });
     }
+
+    const limited = await denyIfRateLimited(userId, "preferences", requestId);
+    if (limited) return limited;
 
     await ensureUser(userId);
 

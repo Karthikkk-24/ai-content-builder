@@ -2,6 +2,7 @@ import { auth } from "@clerk/nextjs/server";
 import { apiError, apiSuccess, getRequestId } from "@/lib/api/response";
 import { clerkConfig } from "@/lib/clerk-config";
 import { getSessionStatus, touchUserSession } from "@/lib/session";
+import { denyIfRateLimited } from "@/lib/rate-limit";
 
 /** Read last Redis activity stamp (does not refresh TTL). */
 export async function GET(req: Request) {
@@ -14,6 +15,9 @@ export async function GET(req: Request) {
         action: "auth",
       });
     }
+
+    const limited = await denyIfRateLimited(userId, "heartbeat", requestId);
+    if (limited) return limited;
 
     const status = await getSessionStatus(userId);
     return apiSuccess(status, requestId);
@@ -38,6 +42,9 @@ export async function POST(req: Request) {
         action: "auth",
       });
     }
+
+    const limited = await denyIfRateLimited(userId, "heartbeat", requestId);
+    if (limited) return limited;
 
     const activity = await touchUserSession(userId);
 

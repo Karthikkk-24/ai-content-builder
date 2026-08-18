@@ -16,6 +16,7 @@ import { cacheDel, invalidateUserCache, userCacheKeys } from "@/lib/cache";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
 import { deleteUserUploadthingFiles } from "@/lib/uploadthing-files";
+import { denyIfRateLimited } from "@/lib/rate-limit";
 
 const deleteSchema = z.object({
   confirmation: z.literal("DELETE MY ACCOUNT"),
@@ -31,6 +32,9 @@ export async function DELETE(req: Request) {
         action: "account.delete",
       });
     }
+
+    const limited = await denyIfRateLimited(userId, "account-delete", requestId);
+    if (limited) return limited;
 
     const rawBody = await readJsonBody(req, AI_JSON_BODY_LIMIT_BYTES);
     if (!rawBody.ok) {

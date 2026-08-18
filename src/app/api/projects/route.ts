@@ -22,6 +22,7 @@ import { contentProjects } from "@/lib/db/schema";
 import { ensureUser } from "@/lib/db/users";
 import { syncGenerationsToProjects } from "@/lib/projects-from-generation";
 import { parseLimitParam } from "@/lib/api/parse-limit";
+import { denyIfRateLimited } from "@/lib/rate-limit";
 
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 100;
@@ -39,6 +40,9 @@ export async function GET(req: Request) {
     if (!userId) {
       return apiError("UNAUTHORIZED", "Unauthorized", 401, requestId, { action: "auth" });
     }
+
+    const limited = await denyIfRateLimited(userId, "projects-read", requestId);
+    if (limited) return limited;
 
     await ensureUser(userId);
 
@@ -74,6 +78,9 @@ export async function POST(req: Request) {
     if (!userId) {
       return apiError("UNAUTHORIZED", "Unauthorized", 401, requestId, { action: "auth" });
     }
+
+    const limited = await denyIfRateLimited(userId, "projects-write", requestId);
+    if (limited) return limited;
 
     await ensureUser(userId);
 

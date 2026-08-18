@@ -20,6 +20,7 @@ import {
 import { db } from "@/lib/db";
 import { contentProjects, generations } from "@/lib/db/schema";
 import { ensureUser } from "@/lib/db/users";
+import { denyIfRateLimited } from "@/lib/rate-limit";
 import {
   collectUploadthingKeysFromStoredContent,
   deleteUnreferencedUploadthingKeys,
@@ -42,6 +43,9 @@ export async function GET(
     if (!userId) {
       return apiError("UNAUTHORIZED", "Unauthorized", 401, requestId, { action: "auth" });
     }
+
+    const limited = await denyIfRateLimited(userId, "projects-read", requestId);
+    if (limited) return limited;
 
     await ensureUser(userId);
 
@@ -75,6 +79,9 @@ export async function PATCH(
     if (!userId) {
       return apiError("UNAUTHORIZED", "Unauthorized", 401, requestId, { action: "auth" });
     }
+
+    const limited = await denyIfRateLimited(userId, "projects-write", requestId);
+    if (limited) return limited;
 
     await ensureUser(userId);
 
@@ -130,6 +137,9 @@ export async function DELETE(
     if (!userId) {
       return apiError("UNAUTHORIZED", "Unauthorized", 401, requestId, { action: "auth" });
     }
+
+    const limited = await denyIfRateLimited(userId, "projects-write", requestId);
+    if (limited) return limited;
 
     await ensureUser(userId);
 

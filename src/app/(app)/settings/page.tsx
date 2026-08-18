@@ -22,7 +22,9 @@ const ROUTE_LABELS: Record<string, string> = {
   poster: "Posters",
   "prompt-upgrade": "Prompt upgrade",
   export: "Data export",
-  default: "Other AI routes",
+  "projects-write": "Projects",
+  preferences: "Preferences",
+  "account-delete": "Account deletion",
 };
 
 export default async function SettingsPage() {
@@ -35,7 +37,7 @@ export default async function SettingsPage() {
     currentUser(),
   ]);
   const rateLimitRules = getRateLimitRulesSummary().filter(
-    (rule) => rule.route !== "default"
+    (rule) => rule.route in ROUTE_LABELS
   );
   const windowSeconds = rateLimitRules[0]?.windowSeconds ?? 60;
 
