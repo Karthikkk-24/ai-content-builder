@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   collectUploadthingKeysFromSources,
+  collectUploadthingKeysFromStoredContent,
   extractUploadthingFileKey,
   extractUploadthingFileKeysFromText,
+  staleUploadthingKeys,
 } from "@/lib/uploadthing-files";
 
 describe("extractUploadthingFileKey", () => {
@@ -68,5 +70,32 @@ describe("collectUploadthingKeysFromSources", () => {
       texts: ["![x](https://utfs.io/f/abc.png) https://utfs.io/f/other.jpg"],
     });
     expect(keys.sort()).toEqual(["abc.png", "other.jpg"]);
+  });
+});
+
+describe("collectUploadthingKeysFromStoredContent", () => {
+  it("collects keys from project image blocks and generation output", () => {
+    const keys = collectUploadthingKeysFromStoredContent({
+      blocks: [
+        { type: "image", url: "https://utfs.io/f/poster.png", content: "" },
+        { type: "paragraph", content: "See https://utfs.io/f/inline.jpg" },
+      ],
+      outputContent: "![out](https://foo.ufs.sh/f/gen.webp)",
+      urls: ["https://utfs.io/f/ref.png"],
+    });
+    expect(keys.sort()).toEqual([
+      "gen.webp",
+      "inline.jpg",
+      "poster.png",
+      "ref.png",
+    ]);
+  });
+});
+
+describe("staleUploadthingKeys", () => {
+  it("drops keys that are still referenced elsewhere", () => {
+    expect(
+      staleUploadthingKeys(["old.png", "shared.png"], ["shared.png", "other.png"])
+    ).toEqual(["old.png"]);
   });
 });

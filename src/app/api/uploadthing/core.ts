@@ -1,9 +1,12 @@
 import { createUploadthing, type FileRouter } from "uploadthing/next";
 import { auth } from "@clerk/nextjs/server";
 import { cacheDel, userCacheKeys } from "@/lib/cache";
-import { db } from "@/lib/db";
-import { referenceImages } from "@/lib/db/schema";
-import { upsertUserPreferences } from "@/lib/preferences";
+import { getUserPreferences, upsertUserPreferences } from "@/lib/preferences";
+import { insertUserReferenceImage } from "@/lib/reference-images";
+import {
+  collectUploadthingKeysFromSources,
+  deleteUnreferencedUploadthingKeys,
+} from "@/lib/uploadthing-files";
 import { persistUploadMetadata } from "@/lib/uploadthing-persist";
 
 const f = createUploadthing();
@@ -27,13 +30,17 @@ export const uploadRouter = {
       return { userId };
     })
     .onUploadComplete(async ({ metadata, file }) => {
-      await persistUploadMetadata(file.key, async () => {
-        await db.insert(referenceImages).values({
-          userId: metadata.userId,
+      const { prunedUrls } = await persistUploadMetadata(file.key, async () =>
+        insertUserReferenceImage(metadata.userId, {
           url: file.ufsUrl,
           fileName: file.name,
-        });
-      });
+        })
+      );
+
+      await deleteUnreferencedUploadthingKeys(
+        metadata.userId,
+        collectUploadthingKeysFromSources({ urls: prunedUrls })
+      );
 
       return {
         uploadedBy: metadata.userId,
@@ -55,12 +62,19 @@ export const uploadRouter = {
       return { userId };
     })
     .onUploadComplete(async ({ metadata, file }) => {
-      await persistUploadMetadata(file.key, async () => {
+      const previousUrl = await persistUploadMetadata(file.key, async () => {
+        const current = await getUserPreferences(metadata.userId);
         await upsertUserPreferences(metadata.userId, {
           customAvatarUrl: file.ufsUrl,
         });
         await cacheDel(userCacheKeys(metadata.userId).profile);
+        return current.customAvatarUrl;
       });
+
+      await deleteUnreferencedUploadthingKeys(
+        metadata.userId,
+        collectUploadthingKeysFromSources({ urls: [previousUrl] })
+      );
 
       return {
         uploadedBy: metadata.userId,
