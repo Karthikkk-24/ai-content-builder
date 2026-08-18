@@ -58,6 +58,18 @@ function sanitizeMarkdownUrl(
   return trimmed.replace(/[()]/g, encodeURIComponent);
 }
 
+/** Client renderer: keep raster data:image; drop javascript / other data:. */
+export function transformMarkdownRendererUrl(url: string): string {
+  const trimmed = url.trim();
+  if (/^(javascript|vbscript):/i.test(trimmed)) {
+    return "";
+  }
+  if (/^data:/i.test(trimmed)) {
+    return isAllowedDataImageUrl(trimmed) ? trimmed : "";
+  }
+  return trimmed;
+}
+
 export function blocksToMarkdown(blocks: ContentBlock[]): string {
   return blocks
     .map((block) => {
