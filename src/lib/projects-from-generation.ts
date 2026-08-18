@@ -4,6 +4,11 @@ import { invalidateUserCache } from "@/lib/cache";
 import { db } from "@/lib/db";
 import type { ContentBlock } from "@/lib/db/schema";
 import { contentProjects, generations } from "@/lib/db/schema";
+import { isAllowedContentImageUrl } from "@/lib/content-blocks";
+import {
+  GENERATED_IMAGE_PLACEHOLDER,
+  sanitizeGeneratedOutputForStorage,
+} from "@/lib/image-utils";
 import { sanitizeBlockContentForMarkdown } from "@/lib/markdown-export";
 
 const MAX_TITLE_LENGTH = 60;
@@ -92,6 +97,16 @@ export async function saveTextGenerationAsProject({
   return project.id;
 }
 
+/**
+ * Persist only URLs that later PATCH/save can accept. Oversized data URLs
+ * become an empty image `url` instead of a sentinel that fails Zod.
+ */
+export function toProjectImageUrl(raw: string): string {
+  const stored = sanitizeGeneratedOutputForStorage(raw);
+  if (!stored || stored === GENERATED_IMAGE_PLACEHOLDER) return "";
+  return isAllowedContentImageUrl(stored) ? stored : "";
+}
+
 export async function saveImageGenerationAsProject({
   userId,
   type,
@@ -119,7 +134,7 @@ export async function saveImageGenerationAsProject({
       id: randomUUID(),
       type: "image",
       content: sanitizeBlockContentForMarkdown(prompt, "plain"),
-      url: imageUrl,
+      url: toProjectImageUrl(imageUrl),
     },
     {
       id: randomUUID(),
@@ -168,11 +183,7 @@ export async function syncGenerationsToProjects(userId: string): Promise<number>
 
   for (const item of unlinked) {
     if (item.type === "poster" || item.type === "photo") {
-      const imageUrl =
-        item.outputContent.startsWith("http") ||
-        item.outputContent.startsWith("data:image/")
-          ? item.outputContent
-          : "";
+      const imageUrl = toProjectImageUrl(item.outputContent);
 
       if (!imageUrl) {
         await saveTextGenerationAsProject({

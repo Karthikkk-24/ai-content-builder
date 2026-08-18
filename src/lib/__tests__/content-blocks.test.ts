@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
-  MAX_PROJECT_BLOCKS,
+  MAX_BLOCK_URL_LENGTH,
   contentBlockSchema,
   projectBlocksSchema,
+  MAX_PROJECT_BLOCKS,
 } from "@/lib/content-blocks";
 
 describe("contentBlockSchema", () => {
@@ -71,6 +72,26 @@ describe("contentBlockSchema", () => {
         url: "https://image.pollinations.ai/out.jpg",
       }).success
     ).toBe(true);
+  });
+
+  it("allows raster data:image longer than the https URL cap", () => {
+    const dataUrl = `data:image/png;base64,${"a".repeat(MAX_BLOCK_URL_LENGTH + 50)}`;
+    expect(
+      contentBlockSchema.safeParse({
+        id: "block-1",
+        type: "image",
+        content: "alt",
+        url: dataUrl,
+      }).success
+    ).toBe(true);
+    expect(
+      contentBlockSchema.safeParse({
+        id: "block-1",
+        type: "image",
+        content: "alt",
+        url: `https://image.pollinations.ai/${"a".repeat(MAX_BLOCK_URL_LENGTH)}`,
+      }).success
+    ).toBe(false);
   });
 });
 

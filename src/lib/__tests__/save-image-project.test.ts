@@ -63,4 +63,24 @@ describe("saveImageGenerationAsProject", () => {
     );
     expect(invalidateUserCache).toHaveBeenCalledWith("user_1");
   });
+
+  it("does not persist oversized data URLs on image blocks", async () => {
+    const { MAX_STORABLE_DATA_URL_LENGTH } = await import("@/lib/image-utils");
+    const { saveImageGenerationAsProject } = await import(
+      "@/lib/projects-from-generation"
+    );
+
+    await saveImageGenerationAsProject({
+      userId: "user_1",
+      type: "photo",
+      prompt: "Huge raster",
+      imageUrl: `data:image/png;base64,${"a".repeat(MAX_STORABLE_DATA_URL_LENGTH + 1)}`,
+    });
+
+    const payload = insertValues.mock.calls[0][0] as {
+      blocks: Array<{ type: string; url?: string }>;
+    };
+    const imageBlock = payload.blocks.find((block) => block.type === "image");
+    expect(imageBlock?.url).toBe("");
+  });
 });

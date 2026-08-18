@@ -122,8 +122,9 @@ so they can be reused across sessions and survive regenerations.
 When `POLLINATIONS_API_KEY` is set, generated photo/poster bytes are also
 re-hosted via Uploadthing so the provider key is **never** returned to clients
 or written to the database. Without Uploadthing, the server falls back to an
-inline data URL (still key-free). Rotate `POLLINATIONS_API_KEY` if it was ever
-exposed in History “View” links.
+inline `data:image` URL (still key-free), persisted up to 1MB so History and
+Builder can reload it. Larger rasters need Uploadthing. Rotate
+`POLLINATIONS_API_KEY` if it was ever exposed in History “View” links.
 
 1. Sign up at [uploadthing.com](https://uploadthing.com) and create an app.
 2. Copy your `UPLOADTHING_TOKEN` to `.env.local`.

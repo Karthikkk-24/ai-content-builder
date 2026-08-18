@@ -2,7 +2,7 @@ import { auth } from "@clerk/nextjs/server";
 import { getCachedGenerations } from "@/lib/dashboard";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { scrubProviderSecretsFromUrl } from "@/lib/image-utils";
+import { scrubProviderSecretsFromUrl, isViewableGeneratedImageUrl } from "@/lib/image-utils";
 import Link from "next/link";
 
 export default async function GenerationsPage() {
@@ -50,7 +50,7 @@ export default async function GenerationsPage() {
                       )}
                     </div>
                     <div className="flex items-center gap-2">
-                      {safeOutput.startsWith("http") && (
+                      {isViewableGeneratedImageUrl(safeOutput) && (
                         <Button variant="outline" size="sm">
                           <a
                             href={safeOutput}
