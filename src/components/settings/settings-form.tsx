@@ -141,7 +141,7 @@ export function SettingsForm({
     setExporting(true);
     setError(null);
     try {
-      const res = await fetch("/api/account/export");
+      const res = await fetch("/api/account/export", { method: "POST" });
       if (!res.ok) {
         const data = await res.json().catch(() => null);
         throw new Error(getApiErrorMessage(data, "Export failed"));

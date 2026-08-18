@@ -19,7 +19,21 @@ import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit";
 /** Per-table cap so export cannot load unbounded history in one response. */
 export const MAX_ACCOUNT_EXPORT_ROWS = 1_000;
 
+/** Lax cookies are sent on cross-site top-level GET; export is POST-only. */
 export async function GET(req: Request) {
+  const requestId = getRequestId(req);
+  const response = apiError(
+    "INVALID_INPUT",
+    "Use POST to export account data",
+    405,
+    requestId,
+    { action: "account.export" }
+  );
+  response.headers.set("Allow", "POST");
+  return response;
+}
+
+export async function POST(req: Request) {
   const requestId = getRequestId(req);
 
   try {
