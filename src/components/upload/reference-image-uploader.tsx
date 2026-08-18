@@ -21,6 +21,31 @@ interface ReferenceImageUploaderProps {
   className?: string;
 }
 
+function parseListedReferences(data: unknown): RecentReference[] {
+  if (
+    !data ||
+    typeof data !== "object" ||
+    !("items" in data) ||
+    !Array.isArray((data as { items: unknown }).items)
+  ) {
+    return [];
+  }
+
+  return (data as { items: unknown[] }).items.flatMap((item) => {
+    if (
+      !item ||
+      typeof item !== "object" ||
+      typeof (item as { id?: unknown }).id !== "string" ||
+      typeof (item as { url?: unknown }).url !== "string" ||
+      typeof (item as { fileName?: unknown }).fileName !== "string"
+    ) {
+      return [];
+    }
+    const row = item as RecentReference;
+    return [{ id: row.id, url: row.url, fileName: row.fileName }];
+  });
+}
+
 export function ReferenceImageUploader({
   value,
   onChange,
@@ -37,36 +62,28 @@ export function ReferenceImageUploader({
       const res = await fetch("/api/reference-images");
       if (!res.ok) return;
       const data: unknown = await res.json();
-      if (
-        !data ||
-        typeof data !== "object" ||
-        !("items" in data) ||
-        !Array.isArray((data as { items: unknown }).items)
-      ) {
-        return;
-      }
-      const items = (data as { items: unknown[] }).items.flatMap((item) => {
-        if (
-          !item ||
-          typeof item !== "object" ||
-          typeof (item as { id?: unknown }).id !== "string" ||
-          typeof (item as { url?: unknown }).url !== "string" ||
-          typeof (item as { fileName?: unknown }).fileName !== "string"
-        ) {
-          return [];
-        }
-        const row = item as RecentReference;
-        return [{ id: row.id, url: row.url, fileName: row.fileName }];
-      });
-      setRecents(items);
+      setRecents(parseListedReferences(data));
     } catch {
       // Listing is best-effort; upload still works.
     }
   }, []);
 
   useEffect(() => {
-    void loadRecents();
-  }, [loadRecents]);
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await fetch("/api/reference-images");
+        if (!res.ok || cancelled) return;
+        const data: unknown = await res.json();
+        if (!cancelled) setRecents(parseListedReferences(data));
+      } catch {
+        // Listing is best-effort; upload still works.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const processFile = useCallback(
     async (file: File) => {

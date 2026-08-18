@@ -55,7 +55,9 @@ export function GeneratorLayout({
   charLimit,
 }: GeneratorLayoutProps) {
   const searchParams = useSearchParams();
-  const [prompt, setPrompt] = useState("");
+  const [prompt, setPrompt] = useState(
+    () => searchParams.get("prompt")?.trim() ?? ""
+  );
   const [context, setContext] = useState<Record<string, string>>({});
   const [referenceImage, setReferenceImage] = useState<string | null>(null);
   const [remarks, setRemarks] = useState("");
@@ -67,13 +69,6 @@ export function GeneratorLayout({
   const [upgrading, setUpgrading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
-
-  useEffect(() => {
-    const fromQuery = searchParams.get("prompt");
-    if (fromQuery && fromQuery.trim()) {
-      setPrompt(fromQuery);
-    }
-  }, [searchParams]);
 
   useEffect(() => {
     let cancelled = false;
