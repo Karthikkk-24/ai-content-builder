@@ -114,7 +114,7 @@ export function collectUploadthingKeysFromSources(sources: {
   return [...keys];
 }
 
-function urlsFromProjectBlocks(blocks: unknown): string[] {
+export function urlsFromProjectBlocks(blocks: unknown): string[] {
   if (!Array.isArray(blocks)) return [];
   const urls: string[] = [];
   for (const block of blocks) {
@@ -124,6 +124,25 @@ function urlsFromProjectBlocks(blocks: unknown): string[] {
     if (typeof record.content === "string") urls.push(record.content);
   }
   return urls;
+}
+
+export function collectUploadthingKeysFromStoredContent(input: {
+  blocks?: unknown;
+  outputContent?: string | null;
+  urls?: Array<string | null | undefined>;
+}): string[] {
+  return collectUploadthingKeysFromSources({
+    urls: [...(input.urls ?? []), ...urlsFromProjectBlocks(input.blocks)],
+    texts: input.outputContent ? [input.outputContent] : [],
+  });
+}
+
+export function staleUploadthingKeys(
+  candidates: string[],
+  remaining: string[]
+): string[] {
+  const keep = new Set(remaining);
+  return candidates.filter((key) => !keep.has(key));
 }
 
 async function collectPaged<T>(
@@ -221,22 +240,22 @@ function chunk<T>(items: T[], size: number): T[][] {
 
 /**
  * Best-effort blob purge. Missing token or UT API errors are logged and do
- * not block Neon/Clerk account deletion (PII in DB still must go).
+ * not block the caller (Neon/Clerk account deletion still proceeds).
  */
-export async function deleteUserUploadthingFiles(
-  userId: string
-): Promise<{ keys: number }> {
-  const keys = await collectUserUploadthingFileKeys(userId);
+export async function deleteUploadthingFileKeys(
+  keys: string[],
+  logContext: { userId?: string } = {}
+): Promise<{ requested: number }> {
   if (keys.length === 0) {
-    return { keys: 0 };
+    return { requested: 0 };
   }
 
   if (!process.env.UPLOADTHING_TOKEN) {
     console.error(
       "Skipping Uploadthing delete: UPLOADTHING_TOKEN is not set",
-      { userId, keys: keys.length }
+      { ...logContext, keys: keys.length }
     );
-    return { keys: keys.length };
+    return { requested: keys.length };
   }
 
   try {
@@ -246,15 +265,42 @@ export async function deleteUserUploadthingFiles(
       const result = await utapi.deleteFiles(group);
       if (!result.success) {
         console.error("Uploadthing deleteFiles failed", {
-          userId,
+          ...logContext,
           requested: group.length,
           deletedCount: result.deletedCount,
         });
       }
     }
   } catch (error) {
-    console.error("Uploadthing purge failed:", error, { userId });
+    console.error("Uploadthing purge failed:", error, logContext);
   }
 
-  return { keys: keys.length };
+  return { requested: keys.length };
+}
+
+/**
+ * Delete candidate keys only if they no longer appear in the user's remaining
+ * stored URLs (avatar, references, generations, projects).
+ */
+export async function deleteUnreferencedUploadthingKeys(
+  userId: string,
+  candidateKeys: string[]
+): Promise<{ requested: number }> {
+  const unique = [...new Set(candidateKeys)];
+  if (unique.length === 0) {
+    return { requested: 0 };
+  }
+
+  const remaining = await collectUserUploadthingFileKeys(userId);
+  return deleteUploadthingFileKeys(staleUploadthingKeys(unique, remaining), {
+    userId,
+  });
+}
+
+export async function deleteUserUploadthingFiles(
+  userId: string
+): Promise<{ keys: number }> {
+  const keys = await collectUserUploadthingFileKeys(userId);
+  const result = await deleteUploadthingFileKeys(keys, { userId });
+  return { keys: result.requested };
 }

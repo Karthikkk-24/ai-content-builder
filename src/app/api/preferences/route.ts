@@ -20,6 +20,10 @@ import {
   upsertUserPreferences,
 } from "@/lib/preferences";
 import { assertSafeExternalImageUrl } from "@/lib/safe-url";
+import {
+  collectUploadthingKeysFromSources,
+  deleteUnreferencedUploadthingKeys,
+} from "@/lib/uploadthing-files";
 
 const updateSchema = z.object({
   defaultTone: z.union([z.enum(PREFERENCE_TONES), z.null()]).optional(),
@@ -95,8 +99,18 @@ export async function PATCH(req: Request) {
       }
     }
 
+    const previous = await getUserPreferences(userId);
     const preferences = await upsertUserPreferences(userId, parsed.data);
     await cacheDel(userCacheKeys(userId).profile);
+
+    if (parsed.data.customAvatarUrl !== undefined) {
+      await deleteUnreferencedUploadthingKeys(
+        userId,
+        collectUploadthingKeysFromSources({
+          urls: [previous.customAvatarUrl],
+        })
+      );
+    }
 
     logAction({
       requestId,

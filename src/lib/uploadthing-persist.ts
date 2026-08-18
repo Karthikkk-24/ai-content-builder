@@ -1,3 +1,5 @@
+import { deleteUploadthingFileKeys } from "@/lib/uploadthing-files";
+
 export const UPLOAD_PERSIST_FAILED_MESSAGE = "Failed to save uploaded file";
 
 /**
@@ -5,29 +7,15 @@ export const UPLOAD_PERSIST_FAILED_MESSAGE = "Failed to save uploaded file";
  * On failure, delete the blob (best-effort) and rethrow a generic error so
  * the client is not told the upload succeeded.
  */
-export async function persistUploadMetadata(
+export async function persistUploadMetadata<T>(
   fileKey: string,
-  persist: () => Promise<void>
-): Promise<void> {
+  persist: () => Promise<T>
+): Promise<T> {
   try {
-    await persist();
+    return await persist();
   } catch (error) {
     console.error("Failed to persist Uploadthing metadata:", error);
-    try {
-      const { UTApi } = await import("uploadthing/server");
-      const result = await new UTApi().deleteFiles(fileKey);
-      if (!result.success) {
-        console.error("Uploadthing rollback deleteFiles did not succeed", {
-          fileKey,
-          deletedCount: result.deletedCount,
-        });
-      }
-    } catch (cleanupError) {
-      console.error(
-        "Failed to delete Uploadthing blob after persist error:",
-        cleanupError
-      );
-    }
+    await deleteUploadthingFileKeys([fileKey]);
     throw new Error(UPLOAD_PERSIST_FAILED_MESSAGE);
   }
 }

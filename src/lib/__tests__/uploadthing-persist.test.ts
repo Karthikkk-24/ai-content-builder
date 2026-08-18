@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const deleteFiles = vi.fn();
 
@@ -9,9 +9,20 @@ vi.mock("uploadthing/server", () => ({
 }));
 
 describe("persistUploadMetadata", () => {
+  const previousToken = process.env.UPLOADTHING_TOKEN;
+
   beforeEach(() => {
     deleteFiles.mockReset();
     deleteFiles.mockResolvedValue({ success: true, deletedCount: 1 });
+    process.env.UPLOADTHING_TOKEN = "test-token";
+  });
+
+  afterEach(() => {
+    if (previousToken === undefined) {
+      delete process.env.UPLOADTHING_TOKEN;
+    } else {
+      process.env.UPLOADTHING_TOKEN = previousToken;
+    }
   });
 
   it("does not delete when persist succeeds", async () => {
@@ -19,6 +30,15 @@ describe("persistUploadMetadata", () => {
     const persist = vi.fn().mockResolvedValue(undefined);
     await persistUploadMetadata("file-key", persist);
     expect(persist).toHaveBeenCalledOnce();
+    expect(deleteFiles).not.toHaveBeenCalled();
+  });
+
+  it("returns the persist result when persist succeeds", async () => {
+    const { persistUploadMetadata } = await import("@/lib/uploadthing-persist");
+    const result = await persistUploadMetadata("file-key", async () => ({
+      prunedUrls: ["https://utfs.io/f/old.png"],
+    }));
+    expect(result).toEqual({ prunedUrls: ["https://utfs.io/f/old.png"] });
     expect(deleteFiles).not.toHaveBeenCalled();
   });
 
@@ -31,6 +51,6 @@ describe("persistUploadMetadata", () => {
       })
     ).rejects.toThrow(UPLOAD_PERSIST_FAILED_MESSAGE);
 
-    expect(deleteFiles).toHaveBeenCalledWith("file-key");
+    expect(deleteFiles).toHaveBeenCalledWith(["file-key"]);
   });
 });

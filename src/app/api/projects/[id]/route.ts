@@ -20,6 +20,10 @@ import {
 import { db } from "@/lib/db";
 import { contentProjects, generations } from "@/lib/db/schema";
 import { ensureUser } from "@/lib/db/users";
+import {
+  collectUploadthingKeysFromStoredContent,
+  deleteUnreferencedUploadthingKeys,
+} from "@/lib/uploadthing-files";
 
 const updateSchema = z.object({
   title: projectTitleSchema.optional(),
@@ -141,6 +145,7 @@ export async function DELETE(
       .returning({
         id: contentProjects.id,
         generationId: contentProjects.generationId,
+        blocks: contentProjects.blocks,
       });
 
     if (!deleted) {
@@ -150,17 +155,35 @@ export async function DELETE(
       });
     }
 
+    let generationOutput: string | null = null;
+    let generationReferenceUrl: string | null = null;
+
     // Erase the linked generation when present (GDPR / no orphan history).
     if (deleted.generationId) {
-      await db
+      const [generation] = await db
         .delete(generations)
         .where(
           and(
             eq(generations.id, deleted.generationId),
             eq(generations.userId, userId)
           )
-        );
+        )
+        .returning({
+          outputContent: generations.outputContent,
+          referenceImageUrl: generations.referenceImageUrl,
+        });
+      generationOutput = generation?.outputContent ?? null;
+      generationReferenceUrl = generation?.referenceImageUrl ?? null;
     }
+
+    await deleteUnreferencedUploadthingKeys(
+      userId,
+      collectUploadthingKeysFromStoredContent({
+        blocks: deleted.blocks,
+        outputContent: generationOutput,
+        urls: [generationReferenceUrl],
+      })
+    );
 
     await invalidateUserCache(userId);
     logAction({
