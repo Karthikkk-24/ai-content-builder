@@ -106,6 +106,13 @@ Prompts are built in `src/lib/ai/prompts/prompt-upgrade.ts` and sanitized via `s
 | photo | 5 |
 | poster | 5 |
 | prompt-upgrade | 10 |
+| export | 5 |
+| projects-read | 60 |
+| projects-write | 30 |
+| preferences | 20 |
+| account-delete | 3 |
+| reference-images | 60 |
+| heartbeat | 30 |
 | default | 20 |
 
 - Redis configured: Lua sorted-set sliding window (atomic).

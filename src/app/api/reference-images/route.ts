@@ -2,6 +2,7 @@ import { auth } from "@clerk/nextjs/server";
 import { apiError, apiSuccess, getRequestId } from "@/lib/api/response";
 import { parseLimitParam } from "@/lib/api/parse-limit";
 import { ensureUser } from "@/lib/db/users";
+import { denyIfRateLimited } from "@/lib/rate-limit";
 import {
   DEFAULT_REFERENCE_IMAGE_LIST_LIMIT,
   MAX_REFERENCE_IMAGE_LIST_LIMIT,
@@ -18,6 +19,13 @@ export async function GET(req: Request) {
         action: "reference-images.list",
       });
     }
+
+    const limited = await denyIfRateLimited(
+      userId,
+      "reference-images",
+      requestId
+    );
+    if (limited) return limited;
 
     await ensureUser(userId);
 

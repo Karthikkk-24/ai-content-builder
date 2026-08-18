@@ -32,6 +32,12 @@ const ROUTE_RULES: Record<string, { maxRequests: number }> = {
   poster: { maxRequests: 5 },
   "prompt-upgrade": { maxRequests: 10 },
   export: { maxRequests: 5 },
+  "projects-read": { maxRequests: 60 },
+  "projects-write": { maxRequests: 30 },
+  preferences: { maxRequests: 20 },
+  "account-delete": { maxRequests: 3 },
+  "reference-images": { maxRequests: 60 },
+  heartbeat: { maxRequests: 30 },
   default: { maxRequests: 20 },
 };
 
@@ -300,6 +306,18 @@ export async function checkPublicRateLimit(
     console.warn("Public rate-limit Redis error, falling back to in-memory:", error);
     return memorySlidingWindow(key, rule);
   }
+}
+
+export async function denyIfRateLimited(
+  userId: string,
+  route: string,
+  requestId: string
+): Promise<Response | null> {
+  const rateLimit = await checkRateLimit(userId, route);
+  if (!rateLimit.allowed) {
+    return rateLimitResponse(rateLimit.retryAfterSeconds, requestId, userId);
+  }
+  return null;
 }
 
 export function rateLimitResponse(
