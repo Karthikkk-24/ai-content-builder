@@ -9,8 +9,10 @@ import {
 } from "@/lib/cache";
 import {
   GENERATED_IMAGE_PLACEHOLDER,
+  MAX_STORABLE_DATA_URL_LENGTH,
   sanitizeGeneratedOutputForStorage,
   scrubProviderSecretsFromUrl,
+  isViewableGeneratedImageUrl,
 } from "@/lib/image-utils";
 import { buildTitle } from "@/lib/projects-from-generation";
 
@@ -60,7 +62,7 @@ describe("sanitizeGeneratedOutputForStorage", () => {
   });
 
   it("replaces oversized data URLs with a sentinel", () => {
-    const huge = `data:image/png;base64,${"a".repeat(100_001)}`;
+    const huge = `data:image/png;base64,${"a".repeat(MAX_STORABLE_DATA_URL_LENGTH + 1)}`;
     expect(sanitizeGeneratedOutputForStorage(huge)).toBe(
       GENERATED_IMAGE_PLACEHOLDER
     );
@@ -72,6 +74,24 @@ describe("sanitizeGeneratedOutputForStorage", () => {
     expect(sanitizeGeneratedOutputForStorage(leaked)).toBe(
       "https://image.pollinations.ai/prompt/test?model=flux&seed=1"
     );
+  });
+});
+
+describe("isViewableGeneratedImageUrl", () => {
+  it("allows https and raster data URLs", () => {
+    expect(
+      isViewableGeneratedImageUrl("https://utfs.io/f/abc.png")
+    ).toBe(true);
+    expect(
+      isViewableGeneratedImageUrl("data:image/png;base64,aaaa")
+    ).toBe(true);
+  });
+
+  it("rejects the oversize sentinel and javascript URLs", () => {
+    expect(isViewableGeneratedImageUrl(GENERATED_IMAGE_PLACEHOLDER)).toBe(
+      false
+    );
+    expect(isViewableGeneratedImageUrl("javascript:alert(1)")).toBe(false);
   });
 });
 

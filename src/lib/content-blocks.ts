@@ -1,11 +1,15 @@
 import { z } from "zod";
+import { MAX_STORABLE_DATA_URL_LENGTH } from "@/lib/image-utils";
 import { assertSafeExternalImageUrl } from "@/lib/safe-url";
 
 /** Max blocks per project (DoS / storage bound). */
 export const MAX_PROJECT_BLOCKS = 100;
 
 export const MAX_BLOCK_CONTENT_LENGTH = 20_000;
+/** CTA / https image hosts (not `data:`). */
 export const MAX_BLOCK_URL_LENGTH = 2_000;
+/** Image blocks: https cap is `MAX_BLOCK_URL_LENGTH`; data:image may be larger. */
+export const MAX_IMAGE_BLOCK_URL_LENGTH = MAX_STORABLE_DATA_URL_LENGTH;
 export const MAX_BLOCK_ID_LENGTH = 64;
 export const MAX_PROJECT_TITLE_LENGTH = 200;
 
@@ -37,14 +41,17 @@ export const blockUrlSchema = z
  */
 export function isAllowedContentImageUrl(raw: string): boolean {
   if (!raw || raw === "") return true;
-  if (raw.length > MAX_BLOCK_URL_LENGTH) return false;
-  if (SAFE_DATA_IMAGE_REGEX.test(raw.trim())) return true;
-  return assertSafeExternalImageUrl(raw).ok;
+  const trimmed = raw.trim();
+  if (SAFE_DATA_IMAGE_REGEX.test(trimmed)) {
+    return trimmed.length <= MAX_IMAGE_BLOCK_URL_LENGTH;
+  }
+  if (trimmed.length > MAX_BLOCK_URL_LENGTH) return false;
+  return assertSafeExternalImageUrl(trimmed).ok;
 }
 
 export const imageBlockUrlSchema = z
   .string()
-  .max(MAX_BLOCK_URL_LENGTH)
+  .max(MAX_IMAGE_BLOCK_URL_LENGTH)
   .refine(isAllowedContentImageUrl, {
     message:
       "Image URL must be empty, a safe data:image, or an allowlisted HTTPS host",

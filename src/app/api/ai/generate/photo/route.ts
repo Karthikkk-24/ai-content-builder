@@ -166,7 +166,7 @@ export async function POST(req: Request) {
           userId,
           type: "photo",
           prompt: sanitizedPrompt,
-          imageUrl: clientSafeUrl,
+          imageUrl: storedOutput,
           generationId: generation.id,
         })
     );

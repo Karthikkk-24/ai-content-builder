@@ -65,7 +65,11 @@ function fitWithinBounds(
   };
 }
 
-const MAX_STORABLE_DATA_URL_LENGTH = 100_000;
+/**
+ * Bound for persisted `data:image` URLs (generations + project image blocks).
+ * Typical 1024² JPEG data URLs fit; larger rasters need Uploadthing.
+ */
+export const MAX_STORABLE_DATA_URL_LENGTH = 1_000_000;
 export const GENERATED_IMAGE_PLACEHOLDER = "[generated-image]";
 
 /** Query params that must never leave the server (provider API keys, tokens). */
@@ -124,4 +128,11 @@ export function sanitizeGeneratedOutputForStorage(content: string) {
   }
 
   return scrubbed;
+}
+
+/** History / View: https(s) or raster data:image, not the oversize sentinel. */
+export function isViewableGeneratedImageUrl(value: string): boolean {
+  if (!value || value === GENERATED_IMAGE_PLACEHOLDER) return false;
+  if (value.startsWith("https://") || value.startsWith("http://")) return true;
+  return /^data:image\/(png|jpe?g|gif|webp);base64,/i.test(value);
 }
