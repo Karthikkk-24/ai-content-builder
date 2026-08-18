@@ -140,7 +140,7 @@ Prompts are built in `src/lib/ai/prompts/prompt-upgrade.ts` and sanitized via `s
 | `user:profile:{id}` | 15 min |
 | `dashboard:stats:{id}` | 2 min |
 | `user:generations:{id}` / `:{limit}` | 2 min |
-| `session:active:{id}` | `clerkConfig.sessionMaxAgeDays` (30 days) |
+| `session:active:{id}` | `sessionMaxAgeDays + 1` (31 days) so a stale stamp can still be read after the 30-day idle window |
 
 Written by `touchUserSession` (ensure-user, profile resolve, heartbeat). Read by `getUserSessionActivity` / `getSessionStatus` and `GET`/`POST` `/api/session/heartbeat` (`activeAt`, `isActive`, `maxAgeDays`).
 
