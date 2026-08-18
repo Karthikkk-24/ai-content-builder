@@ -11,7 +11,9 @@ vi.mock("@/lib/db", () => ({
       from: () => ({
         leftJoin: () => ({
           where: () => ({
-            orderBy: () => Promise.resolve([]),
+            orderBy: () => ({
+              limit: () => Promise.resolve([]),
+            }),
           }),
         }),
       }),
@@ -34,5 +36,12 @@ describe("syncGenerationsToProjects", () => {
     const result = await syncGenerationsToProjects("user_empty");
 
     expect(result).toBe(0);
+  });
+
+  it("caps each list-triggered sync so GET /api/projects stays bounded", async () => {
+    const { SYNC_GENERATIONS_TO_PROJECTS_BATCH } = await import(
+      "@/lib/projects-from-generation"
+    );
+    expect(SYNC_GENERATIONS_TO_PROJECTS_BATCH).toBe(20);
   });
 });
