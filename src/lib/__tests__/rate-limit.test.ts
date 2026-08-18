@@ -127,4 +127,15 @@ describe("tier resolution helpers", () => {
     const first = await checkPublicRateLimit("probe-ip", "ready");
     expect(first.allowed).toBe(true);
   });
+
+  it("public share limiter uses a higher cap than ready probes", async () => {
+    redisConfigured = true;
+    mockEval.mockReset();
+    mockEval.mockResolvedValue([1, 0]);
+    const { checkPublicRateLimit } = await import("@/lib/rate-limit");
+    await checkPublicRateLimit("share-ip", "share");
+    await checkPublicRateLimit("share-ip", "ready");
+    expect(mockEval.mock.calls[0]?.[2][2]).toBe(60);
+    expect(mockEval.mock.calls[1]?.[2][2]).toBe(30);
+  });
 });

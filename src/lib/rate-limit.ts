@@ -245,6 +245,7 @@ export async function checkRateLimit(
 /** Public unauthenticated probes. Kept out of user-facing Settings copy. */
 const PUBLIC_ROUTE_RULES: Record<string, { maxRequests: number }> = {
   ready: { maxRequests: 30 },
+  share: { maxRequests: 60 },
 };
 
 /**
