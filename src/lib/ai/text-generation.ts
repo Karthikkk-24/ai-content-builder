@@ -20,6 +20,7 @@ import { createSseResponse, encodeSse } from "@/lib/ai/sse";
 import { invalidateUserCache } from "@/lib/cache";
 import { db } from "@/lib/db";
 import { generations } from "@/lib/db/schema";
+import { logAction } from "@/lib/api/response";
 import {
   saveTextGenerationAsProject,
   withGenerationProjectRollback,
@@ -325,9 +326,25 @@ export async function streamAndPersistTextResponse({
           provider: streamResult.provider,
           projectId,
         });
+        logAction({
+          requestId,
+          action: "ai.text_generate_stream",
+          userId,
+          outcome: "success",
+          resource: prepared.generationType,
+        });
         controller.close();
       } catch (error) {
         console.error("Streaming generation failed:", error);
+        logAction({
+          requestId,
+          action: "ai.text_generate_stream",
+          userId,
+          outcome: "failure",
+          resource: prepared.generationType,
+          detail:
+            error instanceof Error ? error.message.slice(0, 200) : undefined,
+        });
         send({
           type: "error",
           message: formatAiError(error),

@@ -97,13 +97,6 @@ export async function handleTextGeneratePost(
           referenceImageUrl,
           requestId,
         });
-        logAction({
-          requestId,
-          action: "ai.text_generate_stream",
-          userId,
-          outcome: "success",
-          resource: options.forceGenerationType || mergedContext.generationType || "tweet",
-        });
         return response;
       } catch (streamError) {
         console.warn(
