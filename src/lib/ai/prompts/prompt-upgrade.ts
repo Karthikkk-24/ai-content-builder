@@ -41,25 +41,29 @@ export function buildPromptUpgradeUserMessage(
     ? sanitizeUserInput(context.referenceDescription, { maxChars: 1_000 })
     : "";
 
-  let message = `Original prompt:\n${delimitUntrusted(sanitizedPrompt)}`;
+  let message = `${DATA_NOT_INSTRUCTIONS_NOTE}\n\nOriginal prompt:\n${delimitUntrusted(sanitizedPrompt)}`;
 
   if (sanitizedContext.generationType) {
-    message += `\n\nGeneration type: ${sanitizedContext.generationType}`;
+    message += `\n\nGeneration type: ${delimitUntrusted(sanitizedContext.generationType)}`;
   }
   if (sanitizedContext.tone) {
-    message += `\nTone: ${sanitizedContext.tone}`;
+    message += `\nTone: ${delimitUntrusted(sanitizedContext.tone)}`;
   }
   if (sanitizedContext.audience) {
-    message += `\nAudience: ${sanitizedContext.audience}`;
+    message += `\nAudience: ${delimitUntrusted(sanitizedContext.audience)}`;
   }
   if (sanitizedContext.platform) {
-    message += `\nPlatform: ${sanitizedContext.platform}`;
+    message += `\nPlatform: ${delimitUntrusted(sanitizedContext.platform)}`;
   }
   if (sanitizedReference) {
-    message += `\n\n${DATA_NOT_INSTRUCTIONS_NOTE} Reference image description follows:\n${delimitUntrusted(sanitizedReference)}`;
+    message += `\n\nReference image description follows:\n${delimitUntrusted(sanitizedReference)}`;
   }
 
   return message;
+}
+
+function untrustedOrDefault(value: string | undefined, fallback: string): string {
+  return value ? delimitUntrusted(value) : fallback;
 }
 
 function sanitizeOptionalContext(input: Record<string, string | undefined>) {
@@ -84,9 +88,10 @@ export function buildTweetSystemPrompt(context?: {
     ? "Generate a Twitter/X thread with 3-5 tweets. Number each tweet. Keep each under 280 characters."
     : "Generate a single tweet under 280 characters.";
 
-  return `You are a social media copywriter. ${threadNote}
-Tone: ${sanitized.tone || "professional"}
-Audience: ${sanitized.audience || "general"}
+  return `${DATA_NOT_INSTRUCTIONS_NOTE}
+You are a social media copywriter. ${threadNote}
+Tone: ${untrustedOrDefault(sanitized.tone, "professional")}
+Audience: ${untrustedOrDefault(sanitized.audience, "general")}
 Return only the tweet(s), no explanations.`;
 }
 
@@ -115,11 +120,12 @@ export function buildBlogSystemPrompt(context?: {
       "Structure as a news explainer: lede, context, key facts, implications, sources note.",
   };
 
-  return `You are a content strategist specializing in blog outlines.
-Blog type: ${blogType}
+  return `${DATA_NOT_INSTRUCTIONS_NOTE}
+You are a content strategist specializing in blog outlines.
+Blog type: ${untrustedOrDefault(sanitized.blogType, "how-to")}
 ${structureHints[blogType] || structureHints["how-to"]}
-Tone: ${sanitized.tone || "informative"}
-Audience: ${sanitized.audience || "general"}
+Tone: ${untrustedOrDefault(sanitized.tone, "informative")}
+Audience: ${untrustedOrDefault(sanitized.audience, "general")}
 Return only the outline in markdown format with H2/H3 headings and bullet key points. No preamble.`;
 }
 
@@ -179,8 +185,9 @@ export function buildCaptionSystemPrompt(context?: {
     guidance: "Write a clear, engaging social caption with a few relevant hashtags.",
   };
 
-  return `You are a social media copywriter for ${sanitized.platform || "social media"}.
-Tone: ${sanitized.tone || "professional"}
+  return `${DATA_NOT_INSTRUCTIONS_NOTE}
+You are a social media copywriter for ${untrustedOrDefault(sanitized.platform, "social media")}.
+Tone: ${untrustedOrDefault(sanitized.tone, "professional")}
 Hard limit: ${spec.maxChars} characters (including hashtags).
 Hashtag quota: up to ${spec.hashtagQuota}.
 Platform guidance: ${spec.guidance}
@@ -196,9 +203,10 @@ export function buildPosterSystemPrompt(context?: {
     aspectRatio: context?.aspectRatio,
   });
 
-  return `You are creating a detailed image generation prompt for a poster design.
-Style: ${sanitized.style || "modern minimalist"}
-Aspect ratio: ${sanitized.aspectRatio || "1:1"}
+  return `${DATA_NOT_INSTRUCTIONS_NOTE}
+You are creating a detailed image generation prompt for a poster design.
+Style: ${untrustedOrDefault(sanitized.style, "modern minimalist")}
+Aspect ratio: ${untrustedOrDefault(sanitized.aspectRatio, "1:1")}
 Include typography placement hints, color scheme, and visual hierarchy.
 Return only the image generation prompt, no explanations.`;
 }
@@ -212,9 +220,10 @@ export function buildPhotoSystemPrompt(context?: {
     negativePrompt: context?.negativePrompt,
   });
 
-  return `You are creating a detailed image generation prompt for photorealistic imagery.
-Style: ${sanitized.style || "photorealistic"}
-${sanitized.negativePrompt ? `Avoid: ${sanitized.negativePrompt}` : ""}
+  return `${DATA_NOT_INSTRUCTIONS_NOTE}
+You are creating a detailed image generation prompt for photorealistic imagery.
+Style: ${untrustedOrDefault(sanitized.style, "photorealistic")}
+${sanitized.negativePrompt ? `Avoid: ${delimitUntrusted(sanitized.negativePrompt)}` : ""}
 Return only the image generation prompt, no explanations.`;
 }
 

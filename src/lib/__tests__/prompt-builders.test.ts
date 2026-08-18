@@ -10,18 +10,16 @@ import {
 } from "@/lib/ai/prompts/prompt-upgrade";
 
 describe("prompt builders", () => {
-  it("buildTweetSystemPrompt includes tone and audience", () => {
+  it("buildTweetSystemPrompt includes tone and audience as untrusted data", () => {
     const prompt = buildTweetSystemPrompt({
       tone: "witty",
       audience: "developers",
       threadMode: false,
     });
-    expect(prompt).toMatchInlineSnapshot(`
-      "You are a social media copywriter. Generate a single tweet under 280 characters.
-      Tone: witty
-      Audience: developers
-      Return only the tweet(s), no explanations."
-    `);
+    expect(prompt).toContain("BEGIN_UNTRUSTED_USER_CONTENT");
+    expect(prompt).toContain("witty");
+    expect(prompt).toContain("developers");
+    expect(prompt).toContain("Generate a single tweet under 280 characters");
   });
 
   it("buildTweetSystemPrompt switches to thread mode", () => {
@@ -39,14 +37,9 @@ describe("prompt builders", () => {
   it("buildCaptionSystemPrompt applies platform limits", () => {
     const ig = buildCaptionSystemPrompt({ platform: "Instagram", tone: "casual" });
     expect(ig).toContain("2200");
-    expect(ig).toMatchInlineSnapshot(`
-      "You are a social media copywriter for Instagram.
-      Tone: casual
-      Hard limit: 2200 characters (including hashtags).
-      Hashtag quota: up to 30.
-      Platform guidance: Lead with a hook in the first line. Use line breaks for readability. Suggest 5–15 relevant hashtags (max 30). Light emoji OK.
-      Return only the caption text. No explanations or surrounding quotes."
-    `);
+    expect(ig).toContain("BEGIN_UNTRUSTED_USER_CONTENT");
+    expect(ig).toContain("Instagram");
+    expect(ig).toContain("casual");
   });
 
   it("buildPosterSystemPrompt and buildPhotoSystemPrompt include style", () => {
@@ -54,7 +47,10 @@ describe("prompt builders", () => {
       "bold"
     );
     expect(buildPhotoSystemPrompt({ style: "cinematic", negativePrompt: "blur" })).toContain(
-      "Avoid: blur"
+      "BEGIN_UNTRUSTED_USER_CONTENT"
+    );
+    expect(buildPhotoSystemPrompt({ style: "cinematic", negativePrompt: "blur" })).toContain(
+      "blur"
     );
   });
 
@@ -64,8 +60,8 @@ describe("prompt builders", () => {
       tone: "modern",
     });
     expect(message).toContain("BEGIN_UNTRUSTED_USER_CONTENT");
-    expect(message).toContain("Generation type: poster");
-    expect(message).toContain("Tone: modern");
+    expect(message).toContain("poster");
+    expect(message).toContain("modern");
   });
 
   it("appendRemarks ignores blank remarks", () => {
