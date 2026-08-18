@@ -3,6 +3,7 @@
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
+import { transformMarkdownRendererUrl } from "@/lib/markdown-export";
 
 interface MarkdownRendererProps {
   content: string;
@@ -14,6 +15,7 @@ const markdownSanitizeSchema = {
   protocols: {
     ...defaultSchema.protocols,
     href: ["http", "https", "mailto"],
+    src: ["http", "https", "data"],
   },
   attributes: {
     ...defaultSchema.attributes,
@@ -24,8 +26,8 @@ const markdownSanitizeSchema = {
 
 /**
  * Renders AI-generated text as sanitized Markdown.
- * Supported: headings, bold/italic, lists, links, code, blockquotes, tables.
- * Blocked: raw HTML, javascript:/data: URLs (via rehype-sanitize).
+ * Supported: headings, bold/italic, lists, links, code, blockquotes, tables,
+ * raster data:image. Blocked: raw HTML, javascript:, non-raster data: URLs.
  */
 export function MarkdownRenderer({ content }: MarkdownRendererProps) {
   return (
@@ -33,13 +35,7 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps) {
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         rehypePlugins={[[rehypeSanitize, markdownSanitizeSchema]]}
-        urlTransform={(url) => {
-          const trimmed = url.trim();
-          if (/^(javascript|vbscript|data):/i.test(trimmed)) {
-            return "";
-          }
-          return trimmed;
-        }}
+        urlTransform={transformMarkdownRendererUrl}
       >
         {content}
       </ReactMarkdown>

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   blocksToMarkdown,
   sanitizeBlockContentForMarkdown,
+  transformMarkdownRendererUrl,
 } from "@/lib/markdown-export";
 
 describe("sanitizeBlockContentForMarkdown", () => {
@@ -71,5 +72,26 @@ describe("blocksToMarkdown", () => {
       { id: "2", type: "paragraph", content: "Two" },
     ]);
     expect(md).toContain("One\n\nTwo");
+  });
+});
+
+describe("transformMarkdownRendererUrl", () => {
+  it("keeps raster data:image and https", () => {
+    expect(transformMarkdownRendererUrl("data:image/png;base64,aaa")).toBe(
+      "data:image/png;base64,aaa"
+    );
+    expect(transformMarkdownRendererUrl("https://utfs.io/f/a.png")).toBe(
+      "https://utfs.io/f/a.png"
+    );
+  });
+
+  it("strips javascript and non-raster data URLs", () => {
+    expect(transformMarkdownRendererUrl("javascript:alert(1)")).toBe("");
+    expect(
+      transformMarkdownRendererUrl("data:text/html;base64,PHNjcmlwdD4=")
+    ).toBe("");
+    expect(
+      transformMarkdownRendererUrl("data:image/svg+xml;base64,PHN2Zz4=")
+    ).toBe("");
   });
 });
