@@ -1,17 +1,42 @@
 import { and, eq } from "drizzle-orm";
 import Link from "next/link";
+import { headers } from "next/headers";
 import { notFound } from "next/navigation";
+import { NextResponse } from "next/server";
 import { MarkdownRenderer } from "@/components/markdown-renderer";
 import { db } from "@/lib/db";
 import type { ContentBlock } from "@/lib/db/schema";
 import { contentProjects } from "@/lib/db/schema";
 import { blocksToMarkdown } from "@/lib/markdown-export";
+import { checkPublicRateLimit, clientKeyFromRequest } from "@/lib/rate-limit";
 
 export default async function SharePage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
+  const headerStore = await headers();
+  const probe = new Request("https://localhost/share", {
+    headers: {
+      "x-forwarded-for": headerStore.get("x-forwarded-for") ?? "",
+      "x-real-ip": headerStore.get("x-real-ip") ?? "",
+      "cf-connecting-ip": headerStore.get("cf-connecting-ip") ?? "",
+    },
+  });
+  const rateLimit = await checkPublicRateLimit(
+    clientKeyFromRequest(probe),
+    "share"
+  );
+  if (!rateLimit.allowed) {
+    return new NextResponse("Too many requests. Try again shortly.", {
+      status: 429,
+      headers: {
+        "Retry-After": String(Math.max(1, rateLimit.retryAfterSeconds)),
+        "Cache-Control": "no-store",
+      },
+    });
+  }
+
   const { id } = await params;
   const [project] = await db
     .select({

@@ -2,6 +2,11 @@ import { and, eq } from "drizzle-orm";
 import { apiError, apiSuccess, getRequestId } from "@/lib/api/response";
 import { db } from "@/lib/db";
 import { contentProjects } from "@/lib/db/schema";
+import {
+  checkPublicRateLimit,
+  clientKeyFromRequest,
+  rateLimitResponse,
+} from "@/lib/rate-limit";
 
 /** Public read of a shared project (no auth). */
 export async function GET(
@@ -9,6 +14,13 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const requestId = getRequestId(req);
+  const rateLimit = await checkPublicRateLimit(
+    clientKeyFromRequest(req),
+    "share"
+  );
+  if (!rateLimit.allowed) {
+    return rateLimitResponse(rateLimit.retryAfterSeconds, requestId);
+  }
 
   try {
     const { id } = await params;
