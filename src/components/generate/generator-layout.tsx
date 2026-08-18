@@ -28,6 +28,13 @@ interface ContextField {
   placeholder?: string;
 }
 
+class StreamOpenedError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "StreamOpenedError";
+  }
+}
+
 interface GeneratorLayoutProps {
   title: string;
   description: string;
@@ -145,6 +152,9 @@ export function GeneratorLayout({
           await runTextStream(payload);
           return;
         } catch (streamErr) {
+          if (streamErr instanceof StreamOpenedError) {
+            throw streamErr;
+          }
           console.warn("Stream generate failed; falling back to JSON", streamErr);
         }
       }
@@ -174,7 +184,6 @@ export function GeneratorLayout({
   };
 
   const runTextStream = async (payload: Record<string, unknown>) => {
-    setOutput("");
     const res = await fetch(apiEndpoint, {
       method: "POST",
       headers: {
@@ -202,57 +211,66 @@ export function GeneratorLayout({
     }
 
     if (!res.body) {
-      throw new Error("Empty stream body");
+      throw new StreamOpenedError("Empty stream body");
     }
 
-    const reader = res.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = "";
-    let sawDone = false;
+    try {
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let sawDone = false;
 
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
-      const parts = buffer.split("\n\n");
-      buffer = parts.pop() || "";
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const parts = buffer.split("\n\n");
+        buffer = parts.pop() || "";
 
-      for (const part of parts) {
-        const line = part
-          .split("\n")
-          .find((l) => l.startsWith("data: "));
-        if (!line) continue;
-        const json = line.slice(6).trim();
-        if (!json) continue;
-        let event: {
-          type: string;
-          text?: string;
-          output?: string;
-          projectId?: string;
-          message?: string;
-        };
-        try {
-          event = JSON.parse(json);
-        } catch {
-          continue;
-        }
-
-        if (event.type === "delta" && typeof event.text === "string") {
-          setOutput((prev) => (prev || "") + event.text);
-        } else if (event.type === "done" && typeof event.output === "string") {
-          setOutput(event.output);
-          if (typeof event.projectId === "string" && event.projectId) {
-            setProjectId(event.projectId);
+        for (const part of parts) {
+          const line = part
+            .split("\n")
+            .find((l) => l.startsWith("data: "));
+          if (!line) continue;
+          const json = line.slice(6).trim();
+          if (!json) continue;
+          let event: {
+            type: string;
+            output?: string;
+            projectId?: string;
+            message?: string;
+          };
+          try {
+            event = JSON.parse(json);
+          } catch {
+            continue;
           }
-          sawDone = true;
-        } else if (event.type === "error") {
-          throw new Error(event.message || "Streaming generation failed");
+
+          if (event.type === "done" && typeof event.output === "string") {
+            setOutput(event.output);
+            if (typeof event.projectId === "string" && event.projectId) {
+              setProjectId(event.projectId);
+            }
+            sawDone = true;
+          } else if (event.type === "error") {
+            setOutput(null);
+            throw new StreamOpenedError(
+              event.message || "Streaming generation failed"
+            );
+          }
         }
       }
-    }
 
-    if (!sawDone) {
-      throw new Error("Stream ended before completion");
+      if (!sawDone) {
+        setOutput(null);
+        throw new StreamOpenedError("Stream ended before completion");
+      }
+    } catch (err) {
+      setOutput(null);
+      if (err instanceof StreamOpenedError) throw err;
+      throw new StreamOpenedError(
+        err instanceof Error ? err.message : "Streaming generation failed"
+      );
     }
   };
 

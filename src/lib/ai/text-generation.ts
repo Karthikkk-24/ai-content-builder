@@ -246,7 +246,8 @@ export async function generateAndPersistText({
 }
 
 /**
- * SSE stream of deltas, then persist + emit done with moderated final text.
+ * SSE stream that buffers model tokens until moderation succeeds, then
+ * persist + emit done with the moderated final text (no unmoderated deltas).
  * Throws before the Response is created if the stream cannot be opened
  * (caller should fall back to generateAndPersistText).
  */
@@ -288,7 +289,6 @@ export async function streamAndPersistTextResponse({
         let assembled = "";
         for await (const chunk of streamResult.textStream) {
           assembled += chunk;
-          send({ type: "delta", text: chunk });
         }
 
         let fullText = assembled;
