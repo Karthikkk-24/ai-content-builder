@@ -12,6 +12,7 @@ import {
 import { sanitizeBlockContentForMarkdown } from "@/lib/markdown-export";
 
 const MAX_TITLE_LENGTH = 60;
+export const SYNC_GENERATIONS_TO_PROJECTS_BATCH = 20;
 
 /**
  * neon-http has no Drizzle transactions. If project creation fails after a
@@ -175,7 +176,8 @@ export async function syncGenerationsToProjects(userId: string): Promise<number>
         isNull(contentProjects.id)
       )
     )
-    .orderBy(desc(generations.createdAt));
+    .orderBy(desc(generations.createdAt))
+    .limit(SYNC_GENERATIONS_TO_PROJECTS_BATCH);
 
   if (unlinked.length === 0) {
     return 0;

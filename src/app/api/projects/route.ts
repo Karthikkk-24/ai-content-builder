@@ -49,7 +49,7 @@ export async function GET(req: Request) {
     });
 
     // Incremental sync of generations that were never linked to a project.
-    // Safe because sync only inserts rows with null generation_id join matches.
+    // Capped per request so listing cannot insert an unbounded backlog.
     await syncGenerationsToProjects(userId);
 
     const projects = await db
