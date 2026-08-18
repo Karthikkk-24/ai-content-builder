@@ -104,7 +104,7 @@ After deploy, confirm ready health and a smoke login.
 
 ## Account deletion & GDPR export
 
-- Users can export JSON via Settings → Export (`GET /api/account/export`).
+- Users can export JSON via Settings → Export (`POST /api/account/export`).
 - Self-serve delete: Settings confirmation `DELETE MY ACCOUNT` → Clerk `users.deleteUser` + local `users` row delete (cascades).
 - Clerk `user.deleted` webhook also deletes the local user if deletion starts from Clerk.
 
