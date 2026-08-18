@@ -15,8 +15,11 @@ import {
 import { cacheDel, invalidateUserCache, userCacheKeys } from "@/lib/cache";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
-import { deleteUserUploadthingFiles } from "@/lib/uploadthing-files";
 import { denyIfRateLimited } from "@/lib/rate-limit";
+import {
+  collectUserUploadthingFileKeys,
+  deleteUploadthingFileKeys,
+} from "@/lib/uploadthing-files";
 
 const deleteSchema = z.object({
   confirmation: z.literal("DELETE MY ACCOUNT"),
@@ -52,16 +55,16 @@ export async function DELETE(req: Request) {
       );
     }
 
-    // Purge blobs while URL rows still exist. Clerk delete may fire
-    // user.deleted concurrently; the webhook also purges before cascade.
-    await deleteUserUploadthingFiles(userId);
+    // Snapshot UT keys while Neon rows still exist. Clerk is the source of
+    // truth: if deleteUser fails, media stays. Purge blobs only after Clerk
+    // succeeds (webhook also purges on user.deleted as backup).
+    const fileKeys = await collectUserUploadthingFileKeys(userId);
 
-    // Delete Clerk user first; webhook also cascades DB rows if it arrives.
-    // We still delete local rows so data is gone even if the webhook is delayed.
     const client = await clerkClient();
     await client.users.deleteUser(userId);
 
     await db.delete(users).where(eq(users.id, userId));
+    await deleteUploadthingFileKeys(fileKeys, { userId });
 
     const keys = userCacheKeys(userId);
     await invalidateUserCache(userId);
