@@ -6,8 +6,8 @@ export const CACHE_TTL = {
   USER_PROFILE: 15 * 60,
   DASHBOARD_STATS: 2 * 60,
   GENERATIONS: 2 * 60,
-  /** Aligned with `clerkConfig.sessionMaxAgeDays` (idle TTL for Redis activity keys). */
-  SESSION: clerkConfig.sessionMaxAgeDays * 24 * 60 * 60,
+  /** Redis key TTL: one day longer than idle max so stale stamps can still be read. */
+  SESSION: (clerkConfig.sessionMaxAgeDays + 1) * 24 * 60 * 60,
 } as const;
 
 export const GENERATIONS_CACHE_LIMITS = [20, 50, 100] as const;

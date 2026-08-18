@@ -7,7 +7,7 @@ export const clerkConfig = {
   signUpFallbackRedirectUrl: "/dashboard",
   signInForceRedirectUrl: "/dashboard",
   signUpForceRedirectUrl: "/dashboard",
-  sessionMaxAgeDays: 30,
+  sessionMaxAgeDays: 30, // Idle window; Clerk Dashboard session lifetime should be at least this long.
 } as const;
 
 export function isClerkConfigured() {

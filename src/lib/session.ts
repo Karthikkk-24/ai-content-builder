@@ -8,6 +8,11 @@ import {
 import { clerkConfig } from "@/lib/clerk-config";
 import { getUserPreferences } from "@/lib/preferences";
 
+export { shouldSignOutIdleSession } from "@/lib/session-idle";
+
+export const SESSION_MAX_AGE_MS =
+  clerkConfig.sessionMaxAgeDays * 24 * 60 * 60 * 1000;
+
 export type CachedUserProfile = {
   id: string;
   email: string;
@@ -29,7 +34,7 @@ export type SessionStatus = {
 export function isSessionWithinMaxAge(
   activeAt: number,
   now = Date.now(),
-  maxAgeMs = CACHE_TTL.SESSION * 1000
+  maxAgeMs = SESSION_MAX_AGE_MS
 ): boolean {
   return now - activeAt <= maxAgeMs;
 }
